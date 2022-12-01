@@ -13,57 +13,29 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/ToolOutputFile.h"
 
-#include "CpuGemm/CGDialect.h"
-#include "CpuGemm/CGOps.h"
+#include "CpuGemm/IR/CGOps.h"
 
-namespace mlir
-{
-    namespace hands_on_mlir
-    {
-        void registerConvVectorizationPass();
-        void registerPointwiseConvToGemmPass();
-        void registerPoolingVectorizationPass();
-        void registerLowerBudPass();
-        void registerLowerDIPPass();
-        void registerLowerDAPPass();
-        void registerLowerRVVPass();
-        void registerMatMulOptimizePass();
-        void registerConvOptimizePass();
-        void registerLowerVectorExpPass();
-    } // namespace hands_on_mlir
+namespace mlir {
+namespace hands_on_mlir {
+void registerMatMulCPUOptimizePass();
+} // namespace hands_on_mlir
 } // namespace mlir
 
-int main(int argc, char **argv)
-{
-    // Register all MLIR passes.
-    mlir::registerAllPasses();
-    mlir::buddy::registerPointwiseConvToGemmPass();
-    // Register Vectorization of Convolution.
-    mlir::buddy::registerConvVectorizationPass();
-    // Register Vectorization of Pooling.
-    mlir::buddy::registerPoolingVectorizationPass();
-    mlir::buddy::registerLowerBudPass();
-    mlir::buddy::registerLowerDIPPass();
-    mlir::buddy::registerLowerDAPPass();
-    mlir::buddy::registerLowerRVVPass();
-    mlir::buddy::registerLowerVectorExpPass();
+int main(int argc, char **argv) {
+  // Register all MLIR passes.
+  mlir::registerAllPasses();
 
-    // Register Several Optimize Pass.
-    mlir::buddy::registerMatMulOptimizePass();
-    mlir::buddy::registerConvOptimizePass();
+  // Register Several Optimize Pass.
+  mlir::hands_on_mlir::registerMatMulCPUOptimizePass();
 
-    mlir::DialectRegistry registry;
-    // Register all MLIR core dialects.
-    registerAllDialects(registry);
-    // Register dialects in buddy-mlir project.
-    // clang-format off
-  registry.insert<buddy::bud::BudDialect,
-                  buddy::dip::DIPDialect,
-                  buddy::dap::DAPDialect,
-                  buddy::rvv::RVVDialect,
-                  buddy::vector_exp::VectorExpDialect>();
-    // clang-format on
+  mlir::DialectRegistry registry;
+  // Register all MLIR core dialects.
+  registerAllDialects(registry);
+  // Register dialects in buddy-mlir project.
+  // clang-format off
+  registry.insert<hands_on_mlir::cg::CGDialect>();
+  // clang-format on
 
-    return mlir::failed(
-        mlir::MlirOptMain(argc, argv, "buddy-mlir optimizer driver", registry));
+  return mlir::failed(mlir::MlirOptMain(
+      argc, argv, "hands-on-mlir optimizer driver", registry));
 }

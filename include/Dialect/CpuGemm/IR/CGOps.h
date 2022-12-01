@@ -5,4 +5,7 @@
 
 #include "CpuGemm/IR/CGOpsDialect.h.inc"
 
+#define GET_OP_CLASSES
+#include "CpuGemm/IR/CGOps.h.inc"
+
 #endif // CG_CGDIALECT_H

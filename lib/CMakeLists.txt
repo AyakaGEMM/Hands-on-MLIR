@@ -1,4 +1,5 @@
 add_subdirectory(Dialect)
+add_subdirectory(Conversion)
 add_mlir_library(static_mlir_async_runtime
   STATIC
   ${LLVM_MLIR_SOURCE_DIR}/lib/ExecutionEngine/AsyncRuntime.cpp

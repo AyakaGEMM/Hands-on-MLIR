@@ -28,4 +28,10 @@ def CG_Dialect : Dialect {
 class CG_Op<string mnemonic, list<Trait> traits = []> :
     Op<CG_Dialect, mnemonic, traits>;
 
+def PrintOp : CG_Op<"print", []>{
+  let arguments = (ins F64Tensor:$input);
+
+  let assemblyFormat = "$input attr-dict `:` type($input)";
+}
+
 #endif // CG_CGDIALECT_TD

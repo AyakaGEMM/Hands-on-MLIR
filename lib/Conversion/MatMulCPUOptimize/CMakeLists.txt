@@ -1,0 +1,3 @@
+add_mlir_library(MatMulCPUOptimization
+	MatMulCPUOptimize.cpp
+  )
