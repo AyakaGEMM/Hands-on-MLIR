@@ -17,9 +17,9 @@ target_compile_definitions(static_mlir_async_runtime
 
   set(LLVM_OPTIONAL_SOURCES ExecutionEngine/HandsOnRunnerUtils.cpp)
 
-  add_mlir_library(hands_on_mlir_runner_utils
+add_mlir_library(hands_on_mlir_runner_utils
     SHARED
     ExecutionEngine/HandsOnRunnerUtils.cpp
   
     )
-    target_compile_definitions(hands_on_mlir_runner_utils PRIVATE hands_on_mlir_runner_utils_EXPORTS)
+target_compile_definitions(hands_on_mlir_runner_utils PRIVATE hands_on_mlir_runner_utils_EXPORTS)
