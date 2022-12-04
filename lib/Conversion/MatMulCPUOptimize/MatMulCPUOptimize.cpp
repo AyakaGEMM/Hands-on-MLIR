@@ -48,10 +48,23 @@ struct MatMulCPUOptimize : public ConversionPattern {
     Value N = rewriter.create<memref::DimOp>(loc, B, 1);
     Value K = rewriter.create<memref::DimOp>(loc, A, 1);
 
-    buildAffineLoopNest(
+    buildAffineLoopNest( // Loop K
         rewriter, loc, {i}, {K}, K_BLOCK_SIZE,
         [&](OpBuilder &builder, Location loc, ValueRange ivRange) {
-          Value ik = ivRange.front();
+          Value ik = ivRange.back();
+          const Value i = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+          buildAffineLoopNest( // Loop N
+              builder, loc, {i}, {N}, N_BLOCK_SIZE,
+              [&](OpBuilder &builder, Location loc, ValueRange ivRange) {
+                Value in = ivRange.back();
+                const Value i = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+                buildAffineLoopNest(
+                    builder, loc, {i}, {M}, // Loop M
+                    M_BLOCK_SIZE,
+                    [&](OpBuilder &builder, Location loc, ValueRange ivRange) {
+                      Value im = ivRange.back();
+                    });
+              });
         });
 
     rewriter.eraseOp(op);
