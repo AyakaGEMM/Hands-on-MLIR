@@ -1,20 +1,78 @@
 #include "ExecutionEngine/HandsOnRunnerUtils.h"
 #include <cstdlib>
+#include <ctime>
 #include <iostream>
+using namespace std;
 
-extern "C" void fillRandomMatrix(float *dst, size_t M, size_t N) {}
-extern "C" void validateWithRefImpl(float *A, float *B, float *C1, float *C2,
-                                    size_t M, size_t N, size_t K) {
-  for (size_t i = 0; i < M; i++) {
-    for (size_t j = 0; j < N; j++) {
-      for (size_t k = 0; k < K; k++) {
-        C1[i * N + j] += A[i * K + k] * B[j + k * N];
+inline auto convertToDynamicMemRefType(int64_t rank, void *dst) {
+  UnrankedMemRefType<float> unrankType = {rank, dst};
+  DynamicMemRefType<float> dyType(unrankType);
+  return dyType;
+}
+
+extern "C" void print2DMatrixF32(int64_t rank, void *dst) {
+  assert(rank == 2);
+  auto dyType = convertToDynamicMemRefType(rank, dst);
+  cout << "Unranked Memref ";
+  printMemRefMetaData(std::cout, dyType);
+  cout << endl;
+  for (int i = 0; i < dyType.sizes[0]; i++) {
+    for (int j = 0; j < dyType.sizes[1]; j++) {
+      cout << dyType.data[dyType.sizes[1] * i + j] << " ";
+    }
+    cout << endl;
+  }
+}
+extern "C" void fill2DRandomMatrixF32(int64_t rank, void *dst) {
+  assert(rank == 2);
+  srand(time(nullptr));
+  auto dyType = convertToDynamicMemRefType(rank, dst);
+  float genRandMax = 5;
+  for (int i = 0; i < dyType.sizes[0]; i++) {
+    for (int j = 0; j < dyType.sizes[1]; j++) {
+      dyType.data[dyType.sizes[1] * i + j] =
+          (float)rand() / ((float)RAND_MAX / genRandMax);
+    }
+  }
+}
+extern "C" void fill2DIncMatrixF32(int64_t rank, void *dst) {
+  assert(rank == 2);
+  auto dyType = convertToDynamicMemRefType(rank, dst);
+  int ii = 0;
+  for (int i = 0; i < dyType.sizes[0]; i++) {
+    for (int j = 0; j < dyType.sizes[1]; j++) {
+      dyType.data[dyType.sizes[1] * i + j] = ++ii;
+    }
+  }
+}
+extern "C" void validateF32WithRefMatmul(int64_t rankA, void *dstA,
+                                         int64_t rankB, void *dstB,
+                                         int64_t rankC1, void *dstC1,
+                                         int64_t rankC2, void *dstC2) {
+  auto A = convertToDynamicMemRefType(rankA, dstA);
+  auto B = convertToDynamicMemRefType(rankB, dstB);
+  auto C1 = convertToDynamicMemRefType(rankC1, dstC1);
+  auto C2 = convertToDynamicMemRefType(rankC2, dstC2);
+
+  assert(A.sizes[1] == B.sizes[0]);
+  assert(A.sizes[0] == C1.sizes[0]);
+  assert(B.sizes[1] == C1.sizes[1]);
+  assert(C2.sizes[0] == C1.sizes[0]);
+  assert(C2.sizes[1] == C1.sizes[1]);
+
+  auto M = A.sizes[0];
+  auto N = B.sizes[1];
+  auto K = B.sizes[0];
+  for (int64_t i = 0; i < M; i++) {
+    for (int64_t j = 0; j < N; j++) {
+      for (int64_t k = 0; k < K; k++) {
+        C1.data[i * N + j] += A.data[i * K + k] * B.data[j + k * N];
       }
     }
   }
-  for (size_t i = 0; i < M; i++) {
-    for (size_t j = 0; j < N; j++) {
-      if (C1[i * N + j] != C2[i * N + j]) {
+  for (int64_t i = 0; i < M; i++) {
+    for (int64_t j = 0; j < N; j++) {
+      if (C1.data[i * N + j] != C2.data[i * N + j]) {
         exit(-1);
       }
     }

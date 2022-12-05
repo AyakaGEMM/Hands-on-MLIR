@@ -16,11 +16,17 @@
 #define HANDS_ON_MLIR_RUNNERUTILS_EXPORT __attribute__((visibility("default")))
 #endif // _WIN32
 
+#include "mlir/ExecutionEngine/RunnerUtils.h"
 #include <stddef.h>
 
+extern "C" HANDS_ON_MLIR_RUNNERUTILS_EXPORT void print2DMatrixF32(int64_t rank,
+                                                                  void *dst);
 extern "C" HANDS_ON_MLIR_RUNNERUTILS_EXPORT void
-fillRandomMatrix(float *, size_t, size_t);
+fill2DRandomMatrixF32(int64_t rank, void *dst);
 extern "C" HANDS_ON_MLIR_RUNNERUTILS_EXPORT void
-validateWithRefImpl(float *, float *, float *, float *, size_t, size_t, size_t);
+fill2DIncMatrixF32(int64_t rank, void *dst);
+extern "C" HANDS_ON_MLIR_RUNNERUTILS_EXPORT void
+validateF32WithRefMatmul(int64_t, void *, int64_t, void *, int64_t, void *,
+                         int64_t, void *);
 
 #endif
