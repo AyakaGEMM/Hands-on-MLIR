@@ -6,12 +6,17 @@ func.func @main() {
   %C = memref.alloc() {alignment = 32} : memref<2088x2048xf32>
   %C1 = memref.alloc() {alignment = 32} : memref<2088x2048xf32>
 
-  %cf1 = arith.constant 1.00000e+01 : f32
+  %cf1 = arith.constant 1.00000e+01 : f32 // Large cf1 here to ensure beta is correct.
 
   %AA = memref.cast %A : memref<2088x2048xf32> to memref<*xf32>
   %BB = memref.cast %B : memref<2048x2048xf32> to memref<*xf32>
   %CC1 = memref.cast %C : memref<2088x2048xf32> to memref<*xf32>
   %CC2 = memref.cast %C1 : memref<2088x2048xf32> to memref<*xf32>
+
+  %AAA = memref.cast %A : memref<2088x2048xf32> to memref<?x?xf32>
+  %BBB = memref.cast %B : memref<2048x2048xf32> to memref<?x?xf32>
+  %CCC1 = memref.cast %C : memref<2088x2048xf32> to memref<?x?xf32>
+  %CCC2 = memref.cast %C1 : memref<2088x2048xf32> to memref<?x?xf32>
 
   func.call @fill2DRandomMatrixF32(%AA) : (memref<*xf32>) -> ()
   func.call @fill2DRandomMatrixF32(%BB) : (memref<*xf32>) -> ()
@@ -19,12 +24,17 @@ func.func @main() {
   linalg.fill ins(%cf1 : f32) outs(%C : memref<2088x2048xf32>)
   linalg.fill ins(%cf1 : f32) outs(%C1 : memref<2088x2048xf32>)
   func.call @matmul(%A, %B, %C) : (memref<2088x2048xf32>, memref<2048x2048xf32>, memref<2088x2048xf32>) -> ()
+  func.call @mmatmul(%AAA, %BBB, %CCC1) : (memref<?x?xf32>, memref<?x?xf32>, memref<?x?xf32>) -> ()
   func.call @validateF32WithRefMatmul(%AA, %BB, %CC2, %CC1) : (memref<*xf32>, memref<*xf32>, memref<*xf32>, memref<*xf32>) -> ()
 
   %reps = arith.constant 5 : index
 
+  //warm up
+  func.call @matmul(%A, %B, %C) : (memref<2088x2048xf32>, memref<2048x2048xf32>, memref<2088x2048xf32>) -> ()
+  func.call @mmatmul(%AAA, %BBB, %CCC1) : (memref<?x?xf32>, memref<?x?xf32>, memref<?x?xf32>) -> ()
   %t_start = func.call @rtclock() : () -> (f64)
   affine.for %ti = 0 to %reps {
+    func.call @mmatmul(%AAA, %BBB, %CCC1) : (memref<?x?xf32>, memref<?x?xf32>, memref<?x?xf32>) -> ()
     func.call @matmul(%A, %B, %C) : (memref<2088x2048xf32>, memref<2048x2048xf32>, memref<2088x2048xf32>) -> ()
   }
   %t_end = func.call @rtclock() : () -> (f64)
@@ -56,7 +66,12 @@ func.func @main() {
 #I_UB = affine_map<(d0) -> (696, d0 * 110 + 110)>
 
 func.func @matmul(%arg0: memref<2088x2048xf32>, %arg1: memref<2048x2048xf32>, %arg2: memref<2088x2048xf32>) {
-  linalg.matmul ins(%arg0,%arg1:memref<2088x2048xf32>,memref<2048x2048xf32>) outs(%arg2:memref<2088x2048xf32>)
+  //linalg.matmul ins(%arg0,%arg1:memref<2088x2048xf32>,memref<2048x2048xf32>) outs(%arg2:memref<2088x2048xf32>)
+return
+}
+
+func.func @mmatmul(%arg0: memref<?x?xf32>, %arg1: memref<?x?xf32>, %arg2: memref<?x?xf32>) {
+  linalg.matmul ins(%arg0,%arg1:memref<?x?xf32>,memref<?x?xf32>) outs(%arg2:memref<?x?xf32>)
 return
 }
 
