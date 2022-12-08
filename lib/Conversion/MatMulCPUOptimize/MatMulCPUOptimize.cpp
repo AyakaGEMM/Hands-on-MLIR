@@ -1,4 +1,5 @@
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Affine/LoopUtils.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/Transforms/Transforms.h"
@@ -51,18 +52,20 @@ struct MatMulCPUOptimize : public ConversionPattern {
 
     ValueToRange M_range(M), c0_range(c0);
 
-    auto M_loop = rewriter.create<AffineForOp>(
+    AffineForOp M_loop, N_loop, K_loop;
+
+    M_loop = rewriter.create<AffineForOp>(
         loc, c0_range.vr, rewriter.getDimIdentityMap(), M_range.vr,
         rewriter.getDimIdentityMap(), 1, std::nullopt,
         [&](OpBuilder &builder, Location loc, Value im, ValueRange iterArgs) {
           ValueToRange N_range(N);
-          auto N_loop = builder.create<AffineForOp>(
+          N_loop = builder.create<AffineForOp>(
               loc, c0_range.vr, builder.getDimIdentityMap(), N_range.vr,
               builder.getDimIdentityMap(), 1, std::nullopt,
               [&](OpBuilder &builder, Location loc, Value in,
                   ValueRange iterArgs) {
                 ValueToRange K_range(K);
-                auto K_loop = builder.create<AffineForOp>(
+                K_loop = builder.create<AffineForOp>(
                     loc, c0_range.vr, builder.getDimIdentityMap(), K_range.vr,
                     builder.getDimIdentityMap(), 1, std::nullopt,
                     [&](OpBuilder &builder, Location loc, Value ik,
@@ -97,6 +100,9 @@ struct MatMulCPUOptimize : public ConversionPattern {
 
     Attribute M_Attr = rewriter.getStringAttr("M_loop");
     M_loop->setAttr("Dimension", M_Attr);
+
+    interchangeLoops(N_loop, K_loop); // naive optimization
+    interchangeLoops(M_loop, K_loop);
 
     rewriter.eraseOp(op);
     return success();
