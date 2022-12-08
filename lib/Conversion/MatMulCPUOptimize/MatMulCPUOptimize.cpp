@@ -2,6 +2,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/Transforms/Transforms.h"
+#include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/Operation.h"
@@ -14,6 +15,15 @@ using namespace mlir;
 using namespace vector;
 
 namespace {
+
+struct ValueToRange { // Work around for Value to Range convertion.
+  SmallVector<Value> v_vector;
+  ArrayRef<Value> ref;
+  ValueRange vr;
+  ValueToRange(Value &v) : v_vector(1, v), ref(v_vector), vr(ref) {}
+  ValueToRange(const Value &v) : v_vector(1, v), ref(v_vector), vr(ref) {}
+};
+
 struct MatMulCPUOptimize : public ConversionPattern {
   MatMulCPUOptimize(MLIRContext *ctx)
       : ConversionPattern(linalg::MatmulOp::getOperationName(), 1, ctx) {}
@@ -28,11 +38,65 @@ struct MatMulCPUOptimize : public ConversionPattern {
     Value B = op->getOperand(1);
     Value C = op->getOperand(2);
 
-    auto result = rewriter.create<AffineForOp>(loc, 0, 10000);
+    // Create Constant
+    const Value c0 =
+        rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
+    const Value c1 =
+        rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(1));
+
+    // Create M,N,K
+    Value M = rewriter.create<memref::DimOp>(loc, A, c0);
+    Value N = rewriter.create<memref::DimOp>(loc, C, c1);
+    Value K = rewriter.create<memref::DimOp>(loc, B, c0);
+
+    ValueToRange M_range(M), c0_range(c0);
+
+    auto M_loop = rewriter.create<AffineForOp>(
+        loc, c0_range.vr, rewriter.getDimIdentityMap(), M_range.vr,
+        rewriter.getDimIdentityMap(), 1, std::nullopt,
+        [&](OpBuilder &builder, Location loc, Value im, ValueRange iterArgs) {
+          ValueToRange N_range(N);
+          auto N_loop = builder.create<AffineForOp>(
+              loc, c0_range.vr, builder.getDimIdentityMap(), N_range.vr,
+              builder.getDimIdentityMap(), 1, std::nullopt,
+              [&](OpBuilder &builder, Location loc, Value in,
+                  ValueRange iterArgs) {
+                ValueToRange K_range(K);
+                auto K_loop = builder.create<AffineForOp>(
+                    loc, c0_range.vr, builder.getDimIdentityMap(), K_range.vr,
+                    builder.getDimIdentityMap(), 1, std::nullopt,
+                    [&](OpBuilder &builder, Location loc, Value ik,
+                        ValueRange iterArgs) {
+                      SmallVector<Value> load_A_mem_indices, load_B_mem_indices,
+                          load_C_mem_indices;
+                      load_A_mem_indices.push_back(im);
+                      load_A_mem_indices.push_back(ik);
+                      load_B_mem_indices.push_back(ik);
+                      load_B_mem_indices.push_back(in);
+                      load_C_mem_indices.push_back(im);
+                      load_C_mem_indices.push_back(in);
+                      Value a = builder.create<AffineLoadOp>(
+                          loc, A, load_A_mem_indices);
+                      Value b = builder.create<AffineLoadOp>(
+                          loc, B, load_B_mem_indices);
+                      Value c = builder.create<AffineLoadOp>(
+                          loc, C, load_C_mem_indices);
+                      Value resc = builder.create<math::FmaOp>(loc, a, b, c);
+                      builder.create<AffineStoreOp>(loc, resc, C,
+                                                    load_C_mem_indices);
+                      builder.create<AffineYieldOp>(loc);
+                    });
+                Attribute K_Attr = rewriter.getStringAttr("K_loop");
+                K_loop->setAttr("Dimension", K_Attr);
+                builder.create<AffineYieldOp>(loc);
+              });
+          Attribute N_Attr = rewriter.getStringAttr("N_loop");
+          N_loop->setAttr("Dimension", N_Attr);
+          builder.create<AffineYieldOp>(loc);
+        });
 
     Attribute M_Attr = rewriter.getStringAttr("M_loop");
-
-    result->setAttr("Dimension", M_Attr);
+    M_loop->setAttr("Dimension", M_Attr);
 
     rewriter.eraseOp(op);
     return success();
@@ -60,7 +124,8 @@ struct MatMulCPUOptimizePass
   MatMulCPUOptimizePass(const MatMulCPUOptimizePass &) {}
 
   void getDependentDialects(DialectRegistry &registry) const override {
-    registry.insert<AffineDialect, func::FuncDialect, memref::MemRefDialect>();
+    registry.insert<AffineDialect, func::FuncDialect, memref::MemRefDialect,
+                    math::MathDialect>();
   }
   void runOnOperation() final;
 };
@@ -74,7 +139,8 @@ void MatMulCPUOptimizePass::runOnOperation() {
   // this lowering. In our case, we are lowering to a combination of the
   // `Affine`, `Arith`, `Func`, and `MemRef` dialects.
   target.addLegalDialect<AffineDialect, BuiltinDialect, arith::ArithDialect,
-                         func::FuncDialect, memref::MemRefDialect>();
+                         func::FuncDialect, memref::MemRefDialect,
+                         math::MathDialect>();
   target.addIllegalOp<linalg::MatmulOp>();
 
   RewritePatternSet patterns(context);

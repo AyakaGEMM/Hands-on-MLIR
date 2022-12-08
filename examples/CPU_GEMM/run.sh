@@ -1,7 +1,7 @@
-hands-on-opt -convert-linalg-to-loops \
+hands-on-opt --matmul-cpu-optimize --convert-linalg-to-affine-loops \
 		-lower-affine -convert-scf-to-cf -convert-vector-to-llvm \
-		-convert-memref-to-llvm -convert-arith-to-llvm \
-		-convert-func-to-llvm -reconcile-unrealized-casts optimized.mlir | \
+		-convert-memref-to-llvm -convert-arith-to-llvm --convert-math-to-llvm \
+		-convert-func-to-llvm -reconcile-unrealized-casts naive.mlir | \
         mlir-cpu-runner -O3 -e main \
         -entry-point-result=void \
         -shared-libs=../../../llvm-project/build/lib/libmlir_c_runner_utils.dylib \
