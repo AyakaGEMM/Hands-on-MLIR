@@ -1,3 +1,4 @@
+#include "mlir/Dialect/Affine/Analysis/LoopAnalysis.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Affine/LoopUtils.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -11,6 +12,9 @@
 #include "mlir/IR/Value.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "llvm/Support/Debug.h"
+
+#include <iostream>
 
 using namespace mlir;
 using namespace vector;
@@ -103,22 +107,17 @@ struct MatMulCPUOptimize : public ConversionPattern {
 
     interchangeLoops(N_loop, K_loop); // naive optimization
     interchangeLoops(M_loop, K_loop);
+    interchangeLoops(M_loop, N_loop);
 
     rewriter.eraseOp(op);
     return success();
   }
-
-  const size_t M_KERNEL_SIZE = 6;
-  const size_t N_KERNEL_SIZE = 16;
-  const int32_t K_BLOCK_SIZE = 1024;
-  const int32_t M_BLOCK_SIZE = 384;
-  const int32_t N_BLOCK_SIZE = 1024;
 }; // namespace
 } // namespace
 
 namespace {
 struct MatMulCPUOptimizePass
-    : public PassWrapper<MatMulCPUOptimizePass, OperationPass<ModuleOp>> {
+    : public PassWrapper<MatMulCPUOptimizePass, OperationPass<func::FuncOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MatMulCPUOptimizePass)
 
   StringRef getArgument() const final { return "matmul-cpu-optimize"; }
@@ -134,8 +133,46 @@ struct MatMulCPUOptimizePass
                     math::MathDialect>();
   }
   void runOnOperation() final;
+
+  const size_t M_KERNEL_SIZE = 6;
+  const size_t N_KERNEL_SIZE = 16;
+  const int32_t K_BLOCK_SIZE = 1024;
+  const int32_t M_BLOCK_SIZE = 384;
+  const int32_t N_BLOCK_SIZE = 1024;
 };
 } // namespace
+
+void getRootAffineForOp(func::FuncOp f,
+                        std::vector<SmallVector<AffineForOp, 6>> *bands) {
+  const char dim[] = "Dimension";
+  StringRef root_loop_name("K_loop");
+  for (AffineForOp forOp : f.getOps<AffineForOp>()) {
+    auto stringAttr = forOp->getAttrOfType<StringAttr>(dim);
+    if (!stringAttr)
+      continue;
+    auto loop_name = stringAttr.getValue();
+    if (loop_name.equals(root_loop_name)) {
+      SmallVector<AffineForOp, 6> band;
+      getPerfectlyNestedLoops(band, forOp);
+      bands->push_back(band);
+    }
+  }
+}
+
+AffineForOp getRootAffineForOpUnderIf(AffineForOp forOp) {
+  AffineForOp res;
+  AffineIfOp ifOp;
+  int count = 2;
+  forOp.walk([&](AffineIfOp op) { ifOp = op; }); // Only one if here.
+  ifOp.walk([&](AffineForOp op) {
+    if (count-- == 0) {
+      res = op;
+      return WalkResult::interrupt();
+    }
+    return WalkResult::advance();
+  });
+  return res;
+}
 
 void MatMulCPUOptimizePass::runOnOperation() {
   MLIRContext *context = &getContext();
@@ -155,6 +192,85 @@ void MatMulCPUOptimizePass::runOnOperation() {
   if (failed(
           applyPartialConversion(getOperation(), target, std::move(patterns))))
     signalPassFailure();
+
+  std::vector<SmallVector<AffineForOp, 6>> bands;
+  getRootAffineForOp(getOperation(), &bands);
+
+  SmallVector<unsigned, 6> tile_sizes, // Here we use const parameters.
+      kernel_tile_sizes;
+  tile_sizes.push_back(K_BLOCK_SIZE);
+  tile_sizes.push_back(N_BLOCK_SIZE);
+  tile_sizes.push_back(M_BLOCK_SIZE);
+  kernel_tile_sizes.push_back(M_KERNEL_SIZE);
+  kernel_tile_sizes.push_back(N_KERNEL_SIZE);
+
+  for (auto &band : bands) {
+    SmallVector<AffineForOp, 6> tiled_nest;
+
+    if (failed(tilePerfectlyNested(band, tile_sizes, &tiled_nest)))
+      signalPassFailure();
+
+    tiled_nest[0]->setAttr("Dimension", StringAttr::get(context, "K_BLOCK"));
+    tiled_nest[1]->setAttr("Dimension", StringAttr::get(context, "N_BLOCK"));
+    tiled_nest[2]->setAttr("Dimension", StringAttr::get(context, "M_BLOCK"));
+
+    auto root_forOp = tiled_nest[0];
+    band.clear();
+    getPerfectlyNestedLoops(band, tiled_nest[3]);
+
+    if (failed(separateFullTiles(band))) {
+      std::cerr << "Separation Failed. " << std::endl;
+      signalPassFailure();
+    }
+
+    auto new_start = getRootAffineForOpUnderIf(root_forOp);
+    tiled_nest.clear();
+    getPerfectlyNestedLoops(tiled_nest, new_start);
+    interchangeLoops(new_start, tiled_nest[1]);
+    interchangeLoops(new_start, tiled_nest[2]);
+    interchangeLoops(tiled_nest[1], tiled_nest[2]);
+    new_start->setAttr("Dimension", StringAttr::get(context, "K_KERNEL"));
+
+    band.clear();
+    getPerfectlyNestedLoops(band, tiled_nest[2]);
+    band.pop_back();
+
+    tiled_nest.clear();
+    if (failed(tilePerfectlyNested(band, kernel_tile_sizes, &tiled_nest)))
+      signalPassFailure();
+
+    tiled_nest[0]->setAttr("Dimension", StringAttr::get(context, "M_CACHE"));
+    tiled_nest[1]->setAttr("Dimension", StringAttr::get(context, "N_CACHE"));
+    tiled_nest[2]->setAttr("Dimension", StringAttr::get(context, "M_KERNEL"));
+    tiled_nest[3]->setAttr("Dimension", StringAttr::get(context, "N_KERNEL"));
+    interchangeLoops(tiled_nest[3], new_start);
+    interchangeLoops(tiled_nest[2], new_start);
+    interchangeLoops(tiled_nest[2], tiled_nest[3]);
+
+    auto v = getConstantTripCount(tiled_nest[2]);
+    if (v) {
+      std::cerr << v.value() << std::endl;
+    } else {
+      std::cerr << "Not ok." << std::endl;
+    }
+
+    // band.clear();
+    // getPerfectlyNestedLoops(band, root_forop);
+
+    // tiled_nest.clear();
+    // getPerfectlyNestedLoops(tiled_nest, band[3]);
+
+    // if (failed(separateFullTiles(tiled_nest))) {
+    //   std::cerr << "Separate Failed. " << std::endl;
+    // }
+
+    // if (failed(loopUnrollFull(tiled_nest[2]))) {
+    // }
+    // if (failed(loopUnrollFull(tiled_nest[3]))) {
+    // }
+
+    // tiled_nest[2].setConstantLowerBound(0);
+  }
 }
 
 namespace mlir {

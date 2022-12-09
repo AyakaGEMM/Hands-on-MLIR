@@ -1,3 +1,3 @@
 # \[WIP\] Matmul Optimize demo
 
-Not useable right now.
+Simply try `sh run.sh`. And hopefully, it should show gflops.
