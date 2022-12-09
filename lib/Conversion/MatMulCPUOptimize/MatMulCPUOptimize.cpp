@@ -254,20 +254,15 @@ void MatMulCPUOptimizePass::runOnOperation() {
       std::cerr << "Not ok." << std::endl;
     }
 
-    // band.clear();
-    // getPerfectlyNestedLoops(band, root_forop);
-
-    // tiled_nest.clear();
-    // getPerfectlyNestedLoops(tiled_nest, band[3]);
-
-    // if (failed(separateFullTiles(tiled_nest))) {
-    //   std::cerr << "Separate Failed. " << std::endl;
-    // }
-
-    // if (failed(loopUnrollFull(tiled_nest[2]))) {
-    // }
-    // if (failed(loopUnrollFull(tiled_nest[3]))) {
-    // }
+    if (failed(loopUnrollFull(tiled_nest[2]))) {
+      std::cerr << "Not ok." << std::endl;
+    }
+    if (failed(loopUnrollFull(tiled_nest[3]))) {
+      std::cerr << "Not ok." << std::endl;
+    }
+    if (failed(loopUnrollByFactor(new_start, 4))) {
+      std::cerr << "Not ok." << std::endl;
+    }
 
     // tiled_nest[2].setConstantLowerBound(0);
   }
