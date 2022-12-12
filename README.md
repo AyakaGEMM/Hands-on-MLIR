@@ -1,6 +1,6 @@
 # Hands-on-MLIR
 
-A simple project to optimize `linalg.matmul` using mlir framwork. Currently developing in progress. Feel free to creaet an issue if you have any suggestion or problem.
+A simple project to optimize `linalg.matmul` using mlir framwork. Currently developing in progress. Feel free to creaet an issue if you have any suggestions or problems.
 
 # What can it do?
 
@@ -20,7 +20,7 @@ Install it in your preferable way. This project should be compatible with the ma
 
 ## Install this project
 
-If you didn't enable address sanitizer installing the mlir, please remove the following lines in CMakeLists.txt. (I'm to lazy to make it configurable)
+If you didn't enable address sanitizer when installing the mlir, please remove the following lines in CMakeLists.txt. (I'm to lazy to make it configurable)
 
 ```
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
