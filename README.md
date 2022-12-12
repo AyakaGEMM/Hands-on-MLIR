@@ -20,7 +20,7 @@ Install it in your preferable way. This project should be compatible with the ma
 
 ## Install this project
 
-If you didn't enable address sanitizer when install the mlir, please remove the following line in CMakeLists.txt. (I'm to lazy to make it configurable)
+If you didn't enable address sanitizer installing the mlir, please remove the following lines in CMakeLists.txt. (I'm to lazy to make it configurable)
 
 ```
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
