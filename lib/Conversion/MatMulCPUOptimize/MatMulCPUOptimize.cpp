@@ -331,38 +331,16 @@ void MatMulCPUOptimizePass::runOnOperation() {
 
     band.clear();
     getPerfectlyNestedLoops(band, new_start);
-    (void)normalizeAffineFor(band[0]);
-    (void)normalizeAffineFor(band[1]);
-    (void)normalizeAffineFor(band[2]);
-    // for (int i = band.size() - 1; i >= 0; i--) {
-    //   auto forOp = band[i];
-    //   if (failed(normalizeAffineFor(forOp))) {
-    //     std::cerr << "Not ok." << std::endl;
-    //   }
-    // }
 
-    // AffineCopyOptions copy_options = {false, 100, 100, 100, 512};
-    // DenseSet<Operation *> fastBuf;
-
-    // if (failed(affineDataCopyGenerate(tiled_nest[1].getBody()->begin(),
-    //                                   std::prev(tiled_nest[1].getBody()->end()),
-    //                                   copy_options, A, fastBuf))) {
-    //   std::cerr << "Not ok." << std::endl;
-    // }
-
-    // if (failed(loopUnrollJamUpToFactor(tiled_nest[2], m_loop_trip.value())))
-    // {
-    //   std::cerr << "Not ok." << std::endl;
-    // }
-    //  if (failed(loopUnrollJamUpToFactor(tiled_nest[3], n_loop_trip.value())))
-    //  {
-    //    std::cerr << "Not ok." << std::endl;
-    //  }
-    //   if (failed(loopUnrollByFactor(new_start, 4))) {
-    //     std::cerr << "Not ok." << std::endl;
-    //   }
-
-    // tiled_nest[2].setConstantLowerBound(0);
+    if (failed(loopUnrollJamUpToFactor(tiled_nest[2], m_loop_trip.value()))) {
+      std::cerr << "Not ok." << std::endl;
+    }
+    if (failed(loopUnrollJamUpToFactor(tiled_nest[3], n_loop_trip.value()))) {
+      std::cerr << "Not ok." << std::endl;
+    }
+    if (failed(loopUnrollByFactor(new_start, 4))) {
+      std::cerr << "Not ok." << std::endl;
+    }
   }
 }
 
