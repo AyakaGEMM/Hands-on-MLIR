@@ -1,6 +1,6 @@
 # Hands-on-MLIR
 
-A simple project to optimize `linalg.matmul` using mlir framwork. Currently developing in progress. Feel free to creaet an issue if you have any suggestions or problems.
+A simple project to optimize `linalg.matmul` using mlir framwork. Currently developing in progress. Feel free to create an issue if you have any suggestions or problems.
 
 # What can it do?
 
