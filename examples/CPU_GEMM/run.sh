@@ -1,6 +1,6 @@
 ../../build/bin/hands-on-opt --matmul-cpu-optimize --convert-linalg-to-affine-loops \
 		-lower-affine -convert-scf-to-cf -convert-vector-to-llvm \
-		-convert-memref-to-llvm -convert-arith-to-llvm --convert-math-to-llvm \
+		-finalize-memref-to-llvm -convert-arith-to-llvm --convert-math-to-llvm \
 		-convert-func-to-llvm -reconcile-unrealized-casts naive.mlir | \
         mlir-cpu-runner -O3 -e main \
         -entry-point-result=void \

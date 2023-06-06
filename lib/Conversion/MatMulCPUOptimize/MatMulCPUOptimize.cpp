@@ -60,20 +60,20 @@ struct MatMulCPUOptimize : public ConversionPattern {
 
     ValueToRange M_range(M), c0_range(c0);
 
-    AffineForOp M_loop, N_loop, K_loop;
+    affine::AffineForOp M_loop, N_loop, K_loop;
 
-    M_loop = rewriter.create<AffineForOp>(
+    M_loop = rewriter.create<affine::AffineForOp>(
         loc, c0_range.vr, rewriter.getDimIdentityMap(), M_range.vr,
         rewriter.getDimIdentityMap(), 1, std::nullopt,
         [&](OpBuilder &builder, Location loc, Value im, ValueRange iterArgs) {
           ValueToRange N_range(N);
-          N_loop = builder.create<AffineForOp>(
+          N_loop = builder.create<affine::AffineForOp>(
               loc, c0_range.vr, builder.getDimIdentityMap(), N_range.vr,
               builder.getDimIdentityMap(), 1, std::nullopt,
               [&](OpBuilder &builder, Location loc, Value in,
                   ValueRange iterArgs) {
                 ValueToRange K_range(K);
-                K_loop = builder.create<AffineForOp>(
+                K_loop = builder.create<affine::AffineForOp>(
                     loc, c0_range.vr, builder.getDimIdentityMap(), K_range.vr,
                     builder.getDimIdentityMap(), 1, std::nullopt,
                     [&](OpBuilder &builder, Location loc, Value ik,
@@ -86,32 +86,32 @@ struct MatMulCPUOptimize : public ConversionPattern {
                       load_B_mem_indices.push_back(in);
                       load_C_mem_indices.push_back(im);
                       load_C_mem_indices.push_back(in);
-                      Value a = builder.create<AffineLoadOp>(
+                      Value a = builder.create<affine::AffineLoadOp>(
                           loc, A, load_A_mem_indices);
-                      Value b = builder.create<AffineLoadOp>(
+                      Value b = builder.create<affine::AffineLoadOp>(
                           loc, B, load_B_mem_indices);
-                      Value c = builder.create<AffineLoadOp>(
+                      Value c = builder.create<affine::AffineLoadOp>(
                           loc, C, load_C_mem_indices);
                       Value resc = builder.create<math::FmaOp>(loc, a, b, c);
-                      builder.create<AffineStoreOp>(loc, resc, C,
-                                                    load_C_mem_indices);
-                      builder.create<AffineYieldOp>(loc);
+                      builder.create<affine::AffineStoreOp>(loc, resc, C,
+                                                            load_C_mem_indices);
+                      builder.create<affine::AffineYieldOp>(loc);
                     });
                 Attribute K_Attr = rewriter.getStringAttr("K_loop");
                 K_loop->setAttr("Dimension", K_Attr);
-                builder.create<AffineYieldOp>(loc);
+                builder.create<affine::AffineYieldOp>(loc);
               });
           Attribute N_Attr = rewriter.getStringAttr("N_loop");
           N_loop->setAttr("Dimension", N_Attr);
-          builder.create<AffineYieldOp>(loc);
+          builder.create<affine::AffineYieldOp>(loc);
         });
 
     Attribute M_Attr = rewriter.getStringAttr("M_loop");
     M_loop->setAttr("Dimension", M_Attr);
 
-    interchangeLoops(N_loop, K_loop); // naive optimization
-    interchangeLoops(M_loop, K_loop);
-    interchangeLoops(M_loop, N_loop);
+    affine::interchangeLoops(N_loop, K_loop); // naive optimization
+    affine::interchangeLoops(M_loop, K_loop);
+    affine::interchangeLoops(M_loop, N_loop);
 
     // for (auto attr : M_loop->getAttrs()) {
     //   if (auto mapAttr = attr.getValue().dyn_cast<AffineMapAttr>()) {
@@ -140,8 +140,8 @@ struct MatMulCPUOptimizePass
   MatMulCPUOptimizePass(const MatMulCPUOptimizePass &) {}
 
   void getDependentDialects(DialectRegistry &registry) const override {
-    registry.insert<AffineDialect, func::FuncDialect, memref::MemRefDialect,
-                    math::MathDialect>();
+    registry.insert<affine::AffineDialect, func::FuncDialect,
+                    memref::MemRefDialect, math::MathDialect>();
   }
   void runOnOperation() final;
 
@@ -169,7 +169,9 @@ struct MatMulCPUOptimizePass
     op->setAttr(name, simplified);
   }
 
-  IntegerSet simplify(IntegerSet set) { return simplifyIntegerSet(set); }
+  IntegerSet simplify(IntegerSet set) {
+    return affine::simplifyIntegerSet(set);
+  }
 
   /// Performs basic affine map simplifications.
   AffineMap simplify(AffineMap map) {
@@ -190,29 +192,29 @@ struct MatMulCPUOptimizePass
 };
 } // namespace
 
-void getRootAffineForOp(func::FuncOp f,
-                        std::vector<SmallVector<AffineForOp, 6>> *bands) {
+void getRootAffineForOp(
+    func::FuncOp f, std::vector<SmallVector<affine::AffineForOp, 6>> *bands) {
   const char dim[] = "Dimension";
   StringRef root_loop_name("K_loop");
-  for (AffineForOp forOp : f.getOps<AffineForOp>()) {
+  for (affine::AffineForOp forOp : f.getOps<affine::AffineForOp>()) {
     auto stringAttr = forOp->getAttrOfType<StringAttr>(dim);
     if (!stringAttr)
       continue;
     auto loop_name = stringAttr.getValue();
     if (loop_name.equals(root_loop_name)) {
-      SmallVector<AffineForOp, 6> band;
-      getPerfectlyNestedLoops(band, forOp);
+      SmallVector<affine::AffineForOp, 6> band;
+      affine::getPerfectlyNestedLoops(band, forOp);
       bands->push_back(band);
     }
   }
 }
 
-AffineForOp getRootAffineForOpUnderIf(AffineForOp forOp) {
-  AffineForOp res;
-  AffineIfOp ifOp;
+affine::AffineForOp getRootAffineForOpUnderIf(affine::AffineForOp forOp) {
+  affine::AffineForOp res;
+  affine::AffineIfOp ifOp;
   int count = 2;
-  forOp.walk([&](AffineIfOp op) { ifOp = op; }); // Only one if here.
-  ifOp.walk([&](AffineForOp op) {
+  forOp.walk([&](affine::AffineIfOp op) { ifOp = op; }); // Only one if here.
+  ifOp.walk([&](affine::AffineForOp op) {
     if (count-- == 0) {
       res = op;
       return WalkResult::interrupt();
@@ -229,16 +231,17 @@ void MatMulCPUOptimizePass::runOnOperation() {
   // We define the specific operations, or dialects, that are legal targets for
   // this lowering. In our case, we are lowering to a combination of the
   // `Affine`, `Arith`, `Func`, and `MemRef` dialects.
-  target.addLegalDialect<AffineDialect, BuiltinDialect, arith::ArithDialect,
-                         func::FuncDialect, memref::MemRefDialect,
-                         math::MathDialect>();
+  target.addLegalDialect<affine::AffineDialect, BuiltinDialect,
+                         arith::ArithDialect, func::FuncDialect,
+                         memref::MemRefDialect, math::MathDialect>();
   target.addIllegalOp<linalg::MatmulOp>();
 
   RewritePatternSet patterns(context), simplify_patterns(context);
   patterns.add<MatMulCPUOptimize>(context);
-  AffineApplyOp::getCanonicalizationPatterns(simplify_patterns, context);
-  AffineForOp::getCanonicalizationPatterns(simplify_patterns, context);
-  AffineIfOp::getCanonicalizationPatterns(simplify_patterns, context);
+  affine::AffineApplyOp::getCanonicalizationPatterns(simplify_patterns,
+                                                     context);
+  affine::AffineForOp::getCanonicalizationPatterns(simplify_patterns, context);
+  affine::AffineIfOp::getCanonicalizationPatterns(simplify_patterns, context);
   memref::DimOp::getCanonicalizationPatterns(simplify_patterns, context);
   arith::ConstantIndexOp::getCanonicalizationPatterns(simplify_patterns,
                                                       context);
@@ -257,14 +260,14 @@ void MatMulCPUOptimizePass::runOnOperation() {
         simplifyAndUpdateAttribute(op, attr.getName(), setAttr);
     }
 
-    if (isa<AffineForOp, AffineIfOp, AffineApplyOp, memref::DimOp,
-            arith::ConstantIndexOp>(op))
+    if (isa<affine::AffineForOp, affine::AffineIfOp, affine::AffineApplyOp,
+            memref::DimOp, arith::ConstantIndexOp>(op))
       opsToSimplify.push_back(op);
   });
 
-  (void)applyOpPatternsAndFold(opsToSimplify, frozenPatterns, /*strict=*/true);
+  (void)applyOpPatternsAndFold(opsToSimplify, frozenPatterns);
 
-  std::vector<SmallVector<AffineForOp, 6>> bands;
+  std::vector<SmallVector<affine::AffineForOp, 6>> bands;
   getRootAffineForOp(getOperation(), &bands);
 
   SmallVector<unsigned, 6> tile_sizes, // Here we use const parameters.
@@ -277,7 +280,7 @@ void MatMulCPUOptimizePass::runOnOperation() {
 
   for (auto &band : bands) {
     Value A;
-    SmallVector<AffineForOp, 6> tiled_nest;
+    SmallVector<affine::AffineForOp, 6> tiled_nest;
     band[0].walk([&](memref::LoadOp op) { A = op.getMemRef(); });
 
     if (failed(tilePerfectlyNested(band, tile_sizes, &tiled_nest)))
