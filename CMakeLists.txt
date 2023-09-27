@@ -37,6 +37,7 @@ option(LLVM_BUILD_TOOLS "Build the LLVM tools. If OFF, just generate build targe
 # MLIR/LLVM Configuration
 #-------------------------------------------------------------------------------
 find_package(MLIR REQUIRED CONFIG)
+find_package(MHLO)
 
 set(LLVM_MLIR_BINARY_DIR ${MLIR_DIR}/../../../bin)
 set(LLVM_MLIR_SOURCE_DIR ${MLIR_DIR}/../../../../mlir)
