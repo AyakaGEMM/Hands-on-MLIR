@@ -1,1 +1,2 @@
 add_subdirectory(MatMulCPUOptimize)
+add_subdirectory(ConstantToMemref)

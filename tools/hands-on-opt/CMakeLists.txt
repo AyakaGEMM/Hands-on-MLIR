@@ -9,10 +9,14 @@ target_link_libraries(hands-on-opt
   PRIVATE
   ${dialect_libs}
   ${conversion_libs}
+  ChloOps
+  ConstantToMemref
   MLIROptLib
   MLIRArithDialect
   MatMulCPUOptimization
-  MLIRCG
+  MLIRHOM
+  StablehloOps
+  StablehloHOMTransforms
   )
 
 mlir_check_all_link_libraries(hands-on-opt)

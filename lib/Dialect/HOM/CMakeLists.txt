@@ -1,18 +1,15 @@
 file(GLOB _sources
-          IR/*.cpp
-          Interfaces/*.cpp
-          Canonicalize/*.cpp
-          Transforms/*.cpp
+          *.cpp
     )
 
-add_mlir_library(MLIRCG
+add_mlir_library(MLIRHOM
   ${_sources}
 
   ADDITIONAL_HEADER_DIRS
-  ${HANDS_ON_MLIR_INCLUDE_DIR}/Dialect/CpuGemm
+  ${HANDS_ON_MLIR_INCLUDE_DIR}/Dialect/HOM
 
   DEPENDS
-  MLIRCGOpsIncGen
+  MLIRHOMOpsIncGen
   # MLIRCGTransformsIncGen
 
   LINK_LIBS PUBLIC

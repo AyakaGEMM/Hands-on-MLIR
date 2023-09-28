@@ -37,7 +37,7 @@ option(LLVM_BUILD_TOOLS "Build the LLVM tools. If OFF, just generate build targe
 # MLIR/LLVM Configuration
 #-------------------------------------------------------------------------------
 find_package(MLIR REQUIRED CONFIG)
-find_package(MHLO)
+find_package(MHLO REQUIRED CONFIG)
 
 set(LLVM_MLIR_BINARY_DIR ${MLIR_DIR}/../../../bin)
 set(LLVM_MLIR_SOURCE_DIR ${MLIR_DIR}/../../../../mlir)
@@ -66,12 +66,14 @@ set(HANDS_ON_MLIR_EXAMPLES OFF CACHE BOOL "Build examples")
 # Add MLIR and LLVM headers to the include path
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${MLIR_INCLUDE_DIRS})
+include_directories(${MHLO_INCLUDE_DIRS})
 
 # Add HANDS_ON_MLIR files to the include path
 include_directories(${HANDS_ON_MLIR_MAIN_INCLUDE_DIR})
 include_directories(${HANDS_ON_MLIR_INCLUDE_DIR})
 include_directories(${HANDS_ON_MLIR_INCLUDE_DIR}/Dialect)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include/Dialect)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 include_directories(${HANDS_ON_MLIR_SOURCE_DIR}/lib)
 
 #-------------------------------------------------------------------------------
