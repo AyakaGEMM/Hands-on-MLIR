@@ -1,1 +1,2 @@
 add_subdirectory(Stablehlo)
+add_subdirectory(Tosa)

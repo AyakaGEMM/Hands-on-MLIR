@@ -4,6 +4,7 @@ add_mlir_library(StablehloHOMTransforms
   DEPENDS
   StablehloMOHTransformsPassIncGen
   StablehloMOHPDLLPatternsIncGen
+  WeightsEngine
 
   LINK_COMPONENTS
   Core
@@ -12,4 +13,5 @@ add_mlir_library(StablehloHOMTransforms
   MLIRIR
   MLIRPass
   MLIRTransforms
+  WeightsEngine
 )

@@ -1,4 +1,5 @@
 #include "Conversions/Stablehlo/Transforms/Passes.h"
+#include "Conversions/Tosa/Transforms/Passes.h"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/IR/Dialect.h"
@@ -15,13 +16,13 @@
 #include "llvm/Support/ToolOutputFile.h"
 
 #include "HOM/HOMOps.h"
+#include "HOM/Passes.h"
 #include "stablehlo/dialect/ChloOps.h"
 #include "stablehlo/dialect/StablehloOps.h"
 
 namespace mlir {
 namespace hands_on_mlir {
 void registerMatMulCPUOptimizePass();
-void registerConstantToMemrefPass();
 } // namespace hands_on_mlir
 } // namespace mlir
 
@@ -31,8 +32,9 @@ int main(int argc, char **argv) {
 
   // Register Several Optimize Pass.
   mlir::hands_on_mlir::registerMatMulCPUOptimizePass();
-  mlir::hands_on_mlir::registerConstantToMemrefPass();
+  mlir::hands_on_mlir::hom::registerHOMFusionPass();
   mlir::hands_on_mlir::hom::registerStablehloToHOMPass();
+  mlir::hands_on_mlir::hom::registerTosaToHOMPass();
 
   mlir::DialectRegistry registry;
   // Register all MLIR core dialects.

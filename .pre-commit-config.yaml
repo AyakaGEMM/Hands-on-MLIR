@@ -5,3 +5,4 @@ repos:
     hooks:
       - id: clang-format
         args: [--style=LLVM]
+        exclude: ^thirdparty/

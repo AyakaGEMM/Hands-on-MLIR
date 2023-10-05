@@ -1,3 +1,3 @@
 add_subdirectory(MatMulCPUOptimize)
-add_subdirectory(ConstantToMemref)
 add_subdirectory(Stablehlo)
+add_subdirectory(Tosa)

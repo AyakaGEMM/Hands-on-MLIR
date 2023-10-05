@@ -10,7 +10,7 @@ add_mlir_library(MLIRHOM
 
   DEPENDS
   MLIRHOMOpsIncGen
-  # MLIRCGTransformsIncGen
+  HOMTransformsPassIncGen
 
   LINK_LIBS PUBLIC
   MLIRIR

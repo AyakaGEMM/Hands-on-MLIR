@@ -10,13 +10,14 @@ target_link_libraries(hands-on-opt
   ${dialect_libs}
   ${conversion_libs}
   ChloOps
-  ConstantToMemref
   MLIROptLib
   MLIRArithDialect
   MatMulCPUOptimization
   MLIRHOM
+  WeightsEngine
   StablehloOps
   StablehloHOMTransforms
+  TosaHOMTransforms
   )
 
 mlir_check_all_link_libraries(hands-on-opt)

@@ -75,6 +75,7 @@ include_directories(${HANDS_ON_MLIR_INCLUDE_DIR}/Dialect)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include/Dialect)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 include_directories(${HANDS_ON_MLIR_SOURCE_DIR}/lib)
+include_directories(${HANDS_ON_MLIR_SOURCE_DIR}/thirdparty/half-2.2.0/include)
 
 #-------------------------------------------------------------------------------
 # Hardware detection
