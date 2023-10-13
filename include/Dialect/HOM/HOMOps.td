@@ -48,7 +48,7 @@ def HOM_ConstantOp : HOM_Op<"constant",
   }];
 
   let arguments = (ins
-    StrAttr:$file,
+    // StrAttr:$file,
     I64Attr:$idx
   );
 

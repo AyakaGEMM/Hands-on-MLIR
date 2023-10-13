@@ -7,7 +7,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <memory>
+#include <string>
 
 using half_float::half;
 
@@ -57,7 +59,7 @@ void WeightsEngine::serializeWeightToDisk(ElementsAttr &value,
   out << "\n";
   auto totalSize = value.getNumElements();
   for (int i = 0; i < totalSize; i++) {
-    printElement(data[i], out);
+    out << data[i] << " ";
   }
   out << "\n";
 }
@@ -74,8 +76,14 @@ size_t WeightsEngine::addWeight(ElementsAttr &element) {
   void *dataPtr = malloc(shapeType.getElementTypeBitWidth() / 8 *
                          shapeType.getNumElements());
   std::shared_ptr<void> sPtr;
+  auto idx = addWeight(sPtr);
   if (elementType.isF32()) {
     castElementsToPtr<APFloat>(element, static_cast<float *>(dataPtr));
+    // To-do: Make it configurable
+    serializeWeightToDisk<float>(
+        element, std::filesystem::path(__FILE__).parent_path().string() +
+                     std::string("/../../examples/linear/") +
+                     std::to_string(idx) + ".txt");
     sPtr.reset(static_cast<float *>(dataPtr), free);
   } else if (elementType.isF16()) {
     castElementsToPtr<APFloat>(element, static_cast<half *>(dataPtr));
@@ -101,7 +109,6 @@ size_t WeightsEngine::addWeight(ElementsAttr &element) {
   } else {
     llvm_unreachable("Unsupported Type");
   }
-  auto idx = addWeight(sPtr);
   return idx;
 }
 

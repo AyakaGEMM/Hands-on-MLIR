@@ -37,7 +37,7 @@ OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) {
   assert(adaptor.getOperands().empty() && "constant has no operands");
 
   // Return the held attribute value.
-  return getFileAttr();
+  return getIdxAttr();
 }
 
 /// Print a `constant` op.

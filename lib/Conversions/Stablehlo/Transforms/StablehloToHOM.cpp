@@ -18,7 +18,7 @@ limitations under the License.
 #include <string>
 #include <utility>
 
-#include "Conversions/Stablehlo/Transforms/Passes.h"
+#include "Conversions/Stablehlo/Passes.h"
 #include "HOM/HOMOps.h"
 #include "WeightsEngine/WeightsEngine.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -40,19 +40,10 @@ namespace hands_on_mlir {
 namespace hom {
 
 #define GEN_PASS_DEF_STABLEHLOTOHOMPASS
-#include "Conversions/Stablehlo/Transforms/Passes.h.inc"
-#include "Conversions/Stablehlo/Transforms/StablehloToHOM.pdll.h.inc"
+#include "Conversions/Stablehlo/Passes.h.inc"
+#include "Conversions/Stablehlo/StablehloToHOM.pdll.h.inc"
 
 namespace {
-
-template <class T> void printElement(const T &element, llvm::raw_ostream &out) {
-  element.print(out);
-}
-
-template <>
-void printElement<APInt>(const APInt &element, llvm::raw_ostream &out) {
-  element.print(out, true);
-}
 
 struct StablehloToHOMPass : impl::StablehloToHOMPassBase<StablehloToHOMPass> {
   void runOnOperation() final;
@@ -67,55 +58,14 @@ struct ConvertStablehloConstantOp
     : public OpRewritePattern<stablehlo::ConstantOp> {
   using OpRewritePattern<stablehlo::ConstantOp>::OpRewritePattern;
 
-  template <class T>
-  static void serializeWeightToDisk(ElementsAttr &value,
-                                    const std::string &fileName) {
-    auto shape = value.getShapedType();
-    auto data = value.getValues<T>();
-    auto dimSize = shape.getShape();
-    std::error_code EC;
-    llvm::raw_fd_ostream out(fileName, EC);
-    for (auto i : dimSize) {
-      out << i << " ";
-    }
-    out << "\n";
-    auto totalSize = value.getNumElements();
-    for (int i = 0; i < totalSize; i++) {
-      printElement(data[i], out);
-    }
-    out << "\n";
-  }
-
   LogicalResult matchAndRewrite(stablehlo::ConstantOp op,
                                 PatternRewriter &rewriter) const override {
     auto loc = op.getLoc();
     auto value = op.getValueAttr();
 
-    auto shapeType = value.getShapedType();
-
-    std::string fileName;
     size_t idx = 0;
 
-    // To-do: get rid of these code. Let weights engine handle this.
-    if (shapeType.getElementType().isF32()) {
-      static int fp32Idx = 0;
-      fileName = "/home/pzzzzz/MyProjects/Hands-on-MLIR/examples/"
-                 "contants2memref/" +
-                 std::to_string(fp32Idx++) + ".txt";
-      idx = gWe.addWeight(value);
-      serializeWeightToDisk<APFloat>(value, fileName);
-
-    } else if (shapeType.getElementType().isIntOrIndex()) {
-      static int intIdx = 0;
-      fileName = "/home/pzzzzz/MyProjects/Hands-on-MLIR/examples/"
-                 "contants2memref/" +
-                 std::to_string(intIdx++) + ".txt";
-      // idx = gWe.addWeight(value);
-      serializeWeightToDisk<APInt>(value, fileName);
-    }
-
-    auto constantOP =
-        rewriter.create<ConstantOp>(loc, value.getType(), fileName, idx);
+    auto constantOP = rewriter.create<ConstantOp>(loc, value.getType(), idx);
 
     while (!op->getUses().empty()) {
       op->getUses().begin()->set(constantOP->getResult(0));

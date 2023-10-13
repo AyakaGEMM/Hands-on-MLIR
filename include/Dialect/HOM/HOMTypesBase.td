@@ -2,6 +2,7 @@
 #define HOM_TYPES_BASE
 
 include "mlir/IR/OpBase.td"
+include "mlir/IR/BuiltinTypes.td"
 
 def HOM_UInt8 : UI<8>;
 def HOM_UInt16 : UI<16>;
@@ -52,12 +53,13 @@ def HOM_Int32Tensor : TensorOf<[HOM_Int32]>;
 def HOM_Int32Or64Tensor : TensorOf<[HOM_Int32Or64]>;
 
 // Either ranked or unranked tensor of HOM supported element types.
-def HOM_Tensor : TensorOf<[HOM_AnyNumber]>;
+// def HOM_Tensor : TensorOf<[HOM_AnyNumber]>;
+def HOM_Tensor : AnyTypeOf<[TensorOf<[HOM_AnyNumber]>]>;
 
 // Must be ranked but no further constraints
 def HOM_RankedTensor : RankedTensorOf<[HOM_AnyNumber]>;
 
-def HOM_UnrankedTensor : UnrankedTensorOf<[HOM_AnyNumber]>;
+def HOM_UnrankedTensor : AnyTypeOf<[UnrankedTensorOf<[HOM_AnyNumber]>]>;
 
 def HOM_Tensor1D : AnyTypeOf<[HOM_UnrankedTensor, 1DTensorOf<[HOM_AnyNumber]>]>;
 def HOM_Tensor2D : AnyTypeOf<[HOM_UnrankedTensor, 2DTensorOf<[HOM_AnyNumber]>]>;
@@ -71,5 +73,9 @@ def HOM_ElementType : Type<Or<[HOM_Int.predicate,
 
 class HOM_TensorOfOrNone<list<Type> allowedTypes, string description = ""> :
   AnyTypeOf<[TensorOf<allowedTypes>, NoneType], description>;
+
+def HOM_MemRef : AnyTypeOf<[UnrankedMemRefOf<[HOM_AnyNumber]>, MemRefOf<[HOM_AnyNumber]>]>;
+
+def HOM_TensorOrMemRef : AnyTypeOf<[HOM_Tensor, HOM_MemRef]>;
 
 #endif // HOM_TYPES_BASE

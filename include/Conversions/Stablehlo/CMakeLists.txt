@@ -1,1 +1,8 @@
-add_subdirectory(Transforms)
+set(LLVM_TARGET_DEFINITIONS Passes.td)
+mlir_tablegen(Passes.h.inc -gen-pass-decls -name StablehloHOMTransforms)
+add_public_tablegen_target(StablehloMOHTransformsPassIncGen)
+
+add_mlir_pdll_library(StablehloMOHPDLLPatternsIncGen
+  StablehloToHOM.pdll
+  StablehloToHOM.pdll.h.inc
+)

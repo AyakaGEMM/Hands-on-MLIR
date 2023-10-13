@@ -28,11 +28,8 @@ limitations under the License.
 #include "mlir/Parser/Parser.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include "llvm/ADT/APInt.h"
-#include "llvm/Support/Casting.h"
-#include "llvm/Support/raw_ostream.h"
 
-#define PASS_NAME "Tosa-to-hom"
+#define PASS_NAME "tosa-to-hom"
 #define DEBUG_TYPE PASS_NAME
 
 namespace mlir {
@@ -63,12 +60,8 @@ struct ConvertTosaConstOp : public OpRewritePattern<tosa::ConstOp> {
     auto value = op.getValueAttr();
 
     auto idx = gWe.addWeight(value);
-    std::string fileName("/home/pzzzzz/MyProjects/Hands-on-MLIR/examples/"
-                         "contants2memref/" +
-                         std::to_string(idx) + ".txt");
 
-    auto constantOP =
-        rewriter.create<ConstantOp>(loc, value.getType(), fileName, idx);
+    auto constantOP = rewriter.create<ConstantOp>(loc, value.getType(), idx);
 
     while (!op->getUses().empty()) {
       op->getUses().begin()->set(constantOP->getResult(0));
@@ -121,6 +114,7 @@ struct ConvertTosaMatmulOp : public OpRewritePattern<tosa::MatMulOp> {
 
 LogicalResult TosaToHOMPass::initialize(MLIRContext *ctx) {
   RewritePatternSet patternList(ctx);
+
   populateGeneratedPDLLPatterns(patternList);
   patternList.add<ConvertTosaConstOp>(ctx);
   patternList.add<ConvertTosaMatmulOp>(ctx);

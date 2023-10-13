@@ -1,4 +1,5 @@
-#include "Conversions/Stablehlo/Transforms/Passes.h"
+#include "Conversions/Function/Passes.h"
+#include "Conversions/Stablehlo/Passes.h"
 #include "Conversions/Tosa/Transforms/Passes.h"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Dialect/Linalg/Passes.h"
@@ -33,8 +34,10 @@ int main(int argc, char **argv) {
   // Register Several Optimize Pass.
   mlir::hands_on_mlir::registerMatMulCPUOptimizePass();
   mlir::hands_on_mlir::hom::registerHOMFusionPass();
+  mlir::hands_on_mlir::hom::registerHOMToFuncPass();
   mlir::hands_on_mlir::hom::registerStablehloToHOMPass();
   mlir::hands_on_mlir::hom::registerTosaToHOMPass();
+  mlir::hands_on_mlir::hom::registerUnifyLLVMFuncInterfacePass();
 
   mlir::DialectRegistry registry;
   // Register all MLIR core dialects.

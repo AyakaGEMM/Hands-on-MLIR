@@ -10,6 +10,7 @@ target_link_libraries(hands-on-opt
   ${dialect_libs}
   ${conversion_libs}
   ChloOps
+  HOMFuncTransforms
   MLIROptLib
   MLIRArithDialect
   MatMulCPUOptimization
@@ -18,6 +19,6 @@ target_link_libraries(hands-on-opt
   StablehloOps
   StablehloHOMTransforms
   TosaHOMTransforms
-  )
+)
 
 mlir_check_all_link_libraries(hands-on-opt)
