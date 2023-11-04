@@ -33,6 +33,7 @@ int main(int argc, char **argv) {
 
   // Register Several Optimize Pass.
   mlir::hands_on_mlir::registerMatMulCPUOptimizePass();
+  mlir::hands_on_mlir::hom::registerExtractInitFuncPass();
   mlir::hands_on_mlir::hom::registerHOMFusionPass();
   mlir::hands_on_mlir::hom::registerHOMToFuncPass();
   mlir::hands_on_mlir::hom::registerStablehloToHOMPass();

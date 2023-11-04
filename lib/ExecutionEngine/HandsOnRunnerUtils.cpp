@@ -1,6 +1,5 @@
 #include "ExecutionEngine/HandsOnRunnerUtils.h"
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
-#include "llvm/Support/ErrorHandling.h"
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
@@ -195,7 +194,7 @@ extern "C" CUnrankedMemRefType allocByMemRefF32(int64_t rank, void *dst) {
         createStridedMemRef(static_cast<StridedMemRefType<float, 5> *>(dst));
     break;
   default:
-    llvm_unreachable("Not OK.");
+    break;
   }
 
   return returnMemRef;
@@ -236,7 +235,6 @@ extern "C" CUnrankedMemRefType allocConstantF32(int32_t idx) {
 extern "C" void matmulAddF32(int64_t rankA, void *dstA, int64_t rankB,
                              void *dstB, int64_t rankC, void *dstC,
                              int64_t rankD, void *dstD) {
-
   auto A = convertToDynamicMemRefType(rankA, dstA);
   auto B = convertToDynamicMemRefType(rankB, dstB);
   auto C = convertToDynamicMemRefType(rankC, dstC);

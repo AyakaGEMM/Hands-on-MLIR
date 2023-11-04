@@ -81,7 +81,6 @@ struct UnifyFuncWithBody : public OpRewritePattern<LLVM::LLVMFuncOp> {
   LogicalResult matchAndRewrite(LLVM::LLVMFuncOp op,
                                 PatternRewriter &rewriter) const override {
     if (op.getBlocks().empty() ||
-        strncmp("_hom_", op.getSymName().data(), 5) == 0 ||
         rewrited.find(op.getSymName().str()) != rewrited.end()) {
       return failure();
     }
@@ -95,7 +94,8 @@ struct UnifyFuncWithBody : public OpRewritePattern<LLVM::LLVMFuncOp> {
         LLVM::LLVMVoidType::get(ctx), i8PtrPtrTy, false);
 
     auto unifiedFunc = rewriter.create<LLVM::LLVMFuncOp>(
-        loc, op.getSymName(), unifiedFuncTy, op.getLinkage());
+        loc, "_hom_ciface_" + op.getSymName().str(), unifiedFuncTy,
+        op.getLinkage());
 
     rewriter.updateRootInPlace(
         op, [&]() { op.setSymName("_hom_" + op.getSymName().str()); });
@@ -145,7 +145,8 @@ struct UnifyFuncWithBody : public OpRewritePattern<LLVM::LLVMFuncOp> {
       rewriter.create<LLVM::ReturnOp>(loc, ValueRange{});
     }
 
-    rewrited.insert(op.getSymName().str().substr(5));
+    rewrited.insert(unifiedFunc.getSymName().str());
+    rewrited.insert(op.getSymName().str());
 
     return success();
   }

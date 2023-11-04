@@ -1,5 +1,5 @@
-../../build/bin/hands-on-opt --tosa-layerwise-constant-fold --tosa-to-hom --hom-to-func -convert-func-to-llvm -finalize-memref-to-llvm -convert-arith-to-llvm tosa.mlir | \
-    ../../thirdparty/llvm-project/build/bin/mlir-translate --mlir-to-llvmir |\
+../../build/bin/hands-on-opt --tosa-layerwise-constant-fold --tosa-to-hom --hom-to-func -convert-func-to-llvm -finalize-memref-to-llvm -convert-arith-to-llvm -unify-llvm-func-interface tosa.mlir | \
+    ../../thirdparty/llvm-project/build/bin/mlir-translate --mlir-to-llvmir | \
     ../../thirdparty/llvm-project/build_clang/bin/llc > test.s
 
 clang++ test.s -fPIC -shared -o liblinear.so

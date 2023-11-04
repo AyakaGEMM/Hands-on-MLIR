@@ -1,4 +1,5 @@
 add_mlir_library(HOMFuncTransforms
+  ExtractInitFunc.cpp
   FunctionCallUtils.cpp
   HOMToFunc.cpp
   UnifyLLVMFuncInterface.cpp

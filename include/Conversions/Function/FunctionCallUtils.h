@@ -28,16 +28,20 @@ constexpr llvm::StringRef kAlloc3DMemRefF32 = "alloc3DMemRefF32";
 constexpr llvm::StringRef kAllocByMemRefF32 = "allocByMemRefF32";
 constexpr llvm::StringRef kAllocConstantF32 = "allocConstantF32";
 constexpr llvm::StringRef kDeallocF32 = "deallocF32";
+constexpr llvm::StringRef kDealloc = "_deallocFn";
+constexpr llvm::StringRef kInit = "_initFn";
 constexpr llvm::StringRef kMatmulAddF32 = "matmulAddF32";
 
 func::FuncOp lookupOrCreateFn(ModuleOp moduleOp, StringRef name,
                               ArrayRef<Type> paramTypes,
-                              ArrayRef<Type> resultType);
+                              ArrayRef<Type> resultType, bool isPrivate = true);
 func::FuncOp lookupOrCreateAllocF32Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateAlloc3DMemRefF32Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateAllocByMemRefF32Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateAllocConstantF32Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateDeallocF32Fn(ModuleOp moduleOp);
+func::FuncOp lookupOrCreateDeallocFn(ModuleOp moduleOp, StringRef prefix);
+func::FuncOp lookupOrCreateInitFn(ModuleOp moduleOp, StringRef prefix);
 func::FuncOp lookupOrCreateMatmulAddF32Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateMatmulF32Fn(ModuleOp moduleOp);
 
