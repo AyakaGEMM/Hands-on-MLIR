@@ -40,12 +40,12 @@ add_mlir_library(hands_on_mlir_execution_engine
 
 target_compile_definitions(hands_on_mlir_runner_utils PRIVATE hands_on_mlir_runner_utils_EXPORTS)
 
-get_target_property(target_compile_options hands_on_mlir_runner_utils COMPILE_OPTIONS)
-STRING(REPLACE "-fsanitize=address,undefined" "" target_compile_options ${target_compile_options})
-get_target_property(target_link_options hands_on_mlir_runner_utils LINK_OPTIONS)
-STRING(REPLACE "-fsanitize=address,undefined" "" target_link_options ${target_link_options})
-set_target_properties(hands_on_mlir_runner_utils
-  PROPERTIES
-  COMPILE_OPTIONS "${target_compile_options}"
-  LINK_OPTIONS "${target_link_options}"
-)
+# get_target_property(target_compile_options hands_on_mlir_runner_utils COMPILE_OPTIONS)
+# STRING(REPLACE "-fsanitize=address,undefined" "" target_compile_options ${target_compile_options})
+# get_target_property(target_link_options hands_on_mlir_runner_utils LINK_OPTIONS)
+# STRING(REPLACE "-fsanitize=address,undefined" "" target_link_options ${target_link_options})
+# set_target_properties(hands_on_mlir_runner_utils
+#   PROPERTIES
+#   COMPILE_OPTIONS "${target_compile_options}"
+#   LINK_OPTIONS "${target_link_options}"
+# )

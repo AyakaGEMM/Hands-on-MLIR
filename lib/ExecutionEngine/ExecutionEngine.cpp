@@ -11,8 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 #include "ExecutionEngine/ExecutionEngine.h"
+#include "Conversions/Function/FunctionCallUtils.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "llvm/Support/Error.h"
+#include <cstddef>
 #include <dlfcn.h>
 
 #define DEBUG_TYPE "execution-engine"
@@ -52,7 +55,8 @@ ExecutionEngine::lookupPacked(StringRef name) const {
 }
 
 Expected<void *> ExecutionEngine::lookup(StringRef name) const {
-  auto expectedSymbol = lookupHandle(name);
+  const std::string lookupName = "_hom_ciface_" + name.str();
+  auto expectedSymbol = lookupHandle(lookupName);
 
   if (!expectedSymbol) {
     std::string errorMessage;
@@ -77,4 +81,30 @@ Error ExecutionEngine::invokePacked(StringRef name,
   (*fptr)(args.data());
 
   return Error::success();
+}
+
+Expected<ExecutionEngine::PackedArguments<CUnrankedMemRefType>>
+ExecutionEngine::invokeInit(StringRef name) {
+  SmallVector<char> concatName;
+
+  int32_t argNum;
+
+  auto argNumError = invokeInternal(
+      (name + hom::kArgNum).toStringRef(concatName), result(argNum));
+  if (!argNumError) {
+    llvm::handleAllErrors(std::move(argNumError));
+  }
+
+  concatName.clear();
+
+  PackedArguments<CUnrankedMemRefType> packedArgs(argNum);
+
+  auto packedMemRefRes = invokeInternal(
+      (name + hom::kInit).toStringRef(concatName), result(packedArgs));
+
+  if (packedMemRefRes) {
+    return packedMemRefRes;
+  } else {
+    return packedArgs;
+  }
 }

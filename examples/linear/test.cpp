@@ -1,6 +1,7 @@
 #include "ExecutionEngine/ExecutionEngine.h"
 #include "ExecutionEngine/HandsOnRunnerUtils.h"
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
+#include "llvm/Support/Error.h"
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
@@ -30,15 +31,15 @@ int main() {
   for (int i = 0; i < 6; i++) {
     des->data[i] = 1;
   }
+
   Res b;
-  mlir::hands_on_mlir::ExecutionEngine e(
-      "/home/pzzzzz/MyProjects/Hands-on-MLIR/examples/linear/liblinear.so");
+  mlir::hands_on_mlir::ExecutionEngine e("liblinear.so");
+
   auto res = e.invoke("forward", a.rank, a.descriptor,
                       mlir::hands_on_mlir::ExecutionEngine::result(b));
   if (res) {
     llvm::handleAllErrors(std::move(res));
   }
-  // invoke(a.rank, a.descriptor, result(b));
   auto c = DynamicMemRefType<float>(b.a);
   std::cout << c.rank << std::endl;
   for (int i = 0; i < c.sizes[0]; i++) {
@@ -62,8 +63,10 @@ int main() {
     }
     std::cout << std::endl;
   }
+
   delete[] des->data;
   delete[] c.data;
+
   free(a.descriptor);
   free(b.a.descriptor);
   free(b.b.descriptor);

@@ -47,7 +47,6 @@ limitations under the License.
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include "stablehlo/dialect/StablehloOps.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -127,7 +126,8 @@ struct UnifyFuncWithBody : public OpRewritePattern<LLVM::LLVMFuncOp> {
 
       auto callOldFunc = rewriter.create<LLVM::CallOp>(loc, op, args);
 
-      if (dyn_cast_or_null<LLVM::LLVMVoidType>(
+      if (callOldFunc->getNumResults() > 0 &&
+          dyn_cast_or_null<LLVM::LLVMVoidType>(
               callOldFunc.getResult().getType()) == nullptr) {
         auto retIndex = rewriter.create<LLVM::ConstantOp>(
             loc, IntegerType::get(ctx, 64), op.getNumArguments());

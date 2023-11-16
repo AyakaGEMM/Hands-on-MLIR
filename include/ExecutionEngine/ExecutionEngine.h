@@ -13,6 +13,7 @@
 #ifndef HANDS_ON_MLIR_EXECUTIONENGINE_EXECUTIONENGINE_H_
 #define HANDS_ON_MLIR_EXECUTIONENGINE_EXECUTIONENGINE_H_
 
+#include "ExecutionEngine/HandsOnRunnerUtils.h"
 #include "mlir/Support/LLVM.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
@@ -22,12 +23,14 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/Error.h"
 
+#include <cstddef>
 #include <dlfcn.h>
 #include <functional>
 #include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 
 namespace mlir {
 namespace hands_on_mlir {
@@ -57,6 +60,15 @@ public:
     T &value;
   };
 
+  template <typename T> struct PackedArguments {
+    PackedArguments(size_t argNumber) : argNum(argNumber) {
+      data.reset(new T[argNum]);
+    }
+    PackedArguments() = delete;
+    size_t argNum;
+    std::shared_ptr<T> data;
+  };
+
   /// Helper function to wrap an output operand when using
   /// ExecutionEngine::invoke.
   template <typename T> static Result<T> result(T &t) { return Result<T>(t); }
@@ -66,6 +78,28 @@ public:
   template <typename T> struct Argument<Result<T>> {
     static void pack(SmallVectorImpl<void *> &args, Result<T> &result) {
       args.push_back(&result.value);
+    }
+  };
+
+  template <> struct Argument<CUnrankedMemRefType> {
+    static void pack(SmallVectorImpl<void *> &args, CUnrankedMemRefType &val) {
+      args.emplace_back(&val.rank);
+      args.emplace_back(&val.descriptor);
+    }
+  };
+
+  template <typename T> struct Argument<PackedArguments<T>> {
+    static void pack(SmallVectorImpl<void *> &args, PackedArguments<T> &val) {
+      for (size_t i = 0; i < val.argNum; i++) {
+        Argument<T>::pack(args, val.data.get()[i]);
+      }
+    }
+  };
+
+  template <typename T> struct Argument<Result<PackedArguments<T>>> {
+    static void pack(SmallVectorImpl<void *> &args,
+                     Result<PackedArguments<T>> &result) {
+      Argument<PackedArguments<T>>::pack(args, result.value);
     }
   };
 
@@ -84,21 +118,44 @@ public:
   ///                                     result(result));
   template <typename... Args>
   llvm::Error invoke(StringRef funcName, Args... args) {
-    const std::string adapterName =
-        std::string("_hom_ciface_") + funcName.str();
+    auto it = argMap.find(funcName.str());
+    if (it == argMap.end()) {
+      auto packedArgs = invokeInit(funcName);
+      if (!packedArgs) {
+        return packedArgs.takeError();
+      }
+      argMap.insert({funcName.str(), packedArgs.get()});
+    }
+
     llvm::SmallVector<void *> argsArray;
     // Pack every arguments in an array of pointers. Delegate the packing to a
     // trait so that it can be overridden per argument type.
+    Argument<PackedArguments<CUnrankedMemRefType>>::pack(
+        argsArray, argMap.at(funcName.str()));
     (Argument<Args>::pack(argsArray, args), ...);
-    std::cout << argsArray.size() << std::endl;
-    return invokePacked(adapterName, argsArray);
+    return invokePacked(funcName, argsArray);
   }
 
 private:
   void *handle;
 
-  llvm::Error invokePacked(StringRef adapterName,
+  std::unordered_map<std::string, PackedArguments<CUnrankedMemRefType>> argMap;
+
+  llvm::Error invokePacked(StringRef funcName,
                            MutableArrayRef<void *> argsArray);
+
+  llvm::Expected<PackedArguments<CUnrankedMemRefType>>
+  invokeInit(StringRef adapteName);
+
+  template <typename... Args>
+  llvm::Error invokeInternal(StringRef funcName, Args... args) {
+    llvm::SmallVector<void *> argsArray;
+    // Pack every arguments in an array of pointers. Delegate the packing to a
+    // trait so that it can be overridden per argument type.
+    (Argument<Args>::pack(argsArray, args), ...);
+    std::cout << argsArray.size() << std::endl;
+    return invokePacked(funcName, argsArray);
+  }
 
   llvm::Expected<InvokeFn> lookupPacked(StringRef name) const;
 

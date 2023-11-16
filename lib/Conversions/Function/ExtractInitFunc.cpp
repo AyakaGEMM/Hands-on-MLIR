@@ -37,12 +37,12 @@ limitations under the License.
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include "stablehlo/dialect/StablehloOps.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
@@ -91,12 +91,11 @@ struct ExtractPattern : public OpRewritePattern<func::FuncOp> {
     initFn.addEntryBlock();
     deallocFn.addEntryBlock();
 
-    OpBuilder builder(initFn.getFunctionBody()),
-        builder1(deallocFn.getFunctionBody());
-    builder1.create<func::ReturnOp>(deallocFn->getLoc());
+    OpBuilder initFnBuilder(initFn.getFunctionBody()),
+        deallocFnbuilder(deallocFn.getFunctionBody());
 
-    SmallVector<Operation *> op2remove, alloc2remove;
-    SmallVector<Type> initAllocTypes, fnArgTypes(op.getArgumentTypes());
+    SmallVector<Operation *> dealloc2remove, alloc2remove;
+    SmallVector<Type> initAllocTypes;
     SmallVector<Value> initAllocValues;
 
     op->walk([&](func::CallOp callOp) {
@@ -110,38 +109,68 @@ struct ExtractPattern : public OpRewritePattern<func::FuncOp> {
         for (auto user : callOp->getUsers()) {
           if (auto dealloc = dyn_cast<func::CallOp>(user)) {
             if (dealloc.getCallee().contains("dealloc")) {
-              user->dump();
-              op2remove.emplace_back(dealloc);
+              dealloc2remove.emplace_back(dealloc);
             }
           }
         }
-        auto initIdxOp = builder.create<arith::ConstantIntOp>(
+        auto initIdxOp = initFnBuilder.create<arith::ConstantIntOp>(
             initFn.getLoc(), idxOp.value(), 32);
-        auto initCallOp = builder.create<func::CallOp>(
+        auto initCallOp = initFnBuilder.create<func::CallOp>(
             initFn.getLoc(), callOp.getCallee(), callOp->getResultTypes(),
             ValueRange{initIdxOp.getResult()});
         initAllocValues.emplace_back(initCallOp->getResult(0));
         initAllocTypes.emplace_back(initCallOp->getResult(0).getType());
-        fnArgTypes.emplace_back(initCallOp->getResult(0).getType());
+      } else if (callOp.getCallee().equals("alloc3DMemRefF32")) {
+        alloc2remove.emplace_back(callOp);
+
+        SmallVector<Value> operands;
+        for (int i = 0; i < 3; i++) {
+          auto idxOp = dyn_cast<arith::ConstantIntOp>(
+              callOp->getOperand(i).getDefiningOp());
+          if (!idxOp) {
+            llvm_unreachable("Not Good.");
+          }
+          auto initIdxOp = initFnBuilder.create<arith::ConstantIntOp>(
+              initFn.getLoc(), idxOp.value(), 32);
+          operands.emplace_back(initIdxOp);
+        }
+
+        auto initCallOp = initFnBuilder.create<func::CallOp>(
+            initFn.getLoc(), callOp.getCallee(), callOp->getResultTypes(),
+            operands);
+        initAllocValues.emplace_back(initCallOp->getResult(0));
+        initAllocTypes.emplace_back(initCallOp->getResult(0).getType());
+
+        for (auto user : callOp->getUsers()) {
+          if (auto dealloc = dyn_cast<func::CallOp>(user)) {
+            if (dealloc.getCallee().contains("dealloc")) {
+              dealloc2remove.emplace_back(dealloc);
+            }
+          }
+        }
       }
     });
 
-    builder.create<func::ReturnOp>(initFn->getLoc(), initAllocValues);
-    auto opFnTy = FunctionType::get(ctx, fnArgTypes, op->getResultTypes());
+    initFnBuilder.create<func::ReturnOp>(initFn->getLoc(), initAllocValues);
     auto initFnTy = FunctionType::get(ctx, {}, initAllocTypes);
-    auto deallocFnTy = FunctionType::get(ctx, initAllocTypes, {});
     initFn.setFunctionType(initFnTy);
-    deallocFn.setFunctionType(deallocFnTy);
 
-    int idx = 0, offset = op->getNumOperands();
+    int idx = 0, offset = op.getNumArguments();
+    auto unknownLoc = UnknownLoc::get(ctx);
+    SmallVector<unsigned int> argIndices;
+    SmallVector<Location> argLoc;
+    SmallVector<DictionaryAttr> argAttr;
+    for (size_t i = 0; i < initAllocTypes.size(); i++) {
+      argIndices.emplace_back(0);
+      argLoc.emplace_back(unknownLoc);
+      argAttr.emplace_back(DictionaryAttr::get(ctx));
+    }
 
-    std::cout << deallocFn.getNumArguments() << std::endl;
+    rewriter.updateRootInPlace(op, [&]() {
+      op.insertArguments(argIndices, initAllocTypes, argAttr, argLoc);
+    });
 
-    auto aa = deallocFn.getArguments().size();
-
-    std::cout << aa << std::endl;
-
-    rewriter.updateRootInPlace(op, [&]() { op.setFunctionType(opFnTy); });
+    deallocFn.insertArguments(argIndices, initAllocTypes, argAttr, argLoc);
 
     for (auto type : initAllocTypes) {
       auto memrefTy = dyn_cast<UnrankedMemRefType>(type);
@@ -150,29 +179,43 @@ struct ExtractPattern : public OpRewritePattern<func::FuncOp> {
       }
       if (memrefTy.getElementType().isF32()) {
         auto internalDeallocFn = lookupOrCreateDeallocF32Fn(moduleOp);
-        // builder1.create<func::CallOp>(deallocFn.getLoc(), internalDeallocFn,
-        //                               ValueRange{deallocFn.getArgument(idx)});
-        std::cout << idx << std::endl;
+        deallocFnbuilder.create<func::CallOp>(
+            deallocFn.getLoc(), internalDeallocFn,
+            ValueRange{deallocFn.getArgument(idx)});
       } else {
         llvm_unreachable("Not Good.");
       }
       idx++;
     }
 
-    for (auto &op : alloc2remove) {
-      while (op->getUses().empty()) {
-        op->getUses().begin()->set(op->getOperand(offset++));
+    deallocFnbuilder.create<func::ReturnOp>(deallocFn->getLoc());
+
+    idx = 0;
+    for (auto &allocOp : alloc2remove) {
+      while (!allocOp->getUses().empty()) {
+        allocOp->getUses().begin()->set(op.getArgument(idx));
       }
-      // rewriter.eraseOp(op);
+      idx++;
+      rewriter.eraseOp(allocOp);
     }
 
-    for (auto &op : op2remove) {
+    for (auto &op : dealloc2remove) {
       rewriter.eraseOp(op);
     }
+
+    auto argNumFn = lookupOrCreateArgNumFn(moduleOp, op.getSymName());
+    argNumFn.addEntryBlock();
+
+    OpBuilder numFnBuilder(argNumFn.getBody());
+    auto argActuallNum = numFnBuilder.create<arith::ConstantIntOp>(
+        argNumFn->getLoc(), initAllocTypes.size(), 32);
+    numFnBuilder.create<func::ReturnOp>(argNumFn->getLoc(),
+                                        ValueRange{argActuallNum.getResult()});
 
     handled.insert(initFn.getSymName().str());
     handled.insert(deallocFn.getSymName().str());
     handled.insert(op.getSymName().str());
+    handled.insert(argNumFn.getSymName().str());
 
     return success();
   }

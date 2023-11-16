@@ -1,9 +1,9 @@
-../../build/bin/hands-on-opt --tosa-layerwise-constant-fold --tosa-to-hom --hom-to-func -convert-func-to-llvm -finalize-memref-to-llvm -convert-arith-to-llvm -unify-llvm-func-interface tosa.mlir | \
-    ../../thirdparty/llvm-project/build/bin/mlir-translate --mlir-to-llvmir | \
-    ../../thirdparty/llvm-project/build_clang/bin/llc > test.s
+../../build/bin/hands-on-opt --tosa-layerwise-constant-fold --tosa-to-hom --hom-to-func --extract-init-func -convert-func-to-llvm -finalize-memref-to-llvm -convert-arith-to-llvm -unify-llvm-func-interface tosa.mlir | \
+           ../../thirdparty/llvm-project/build/bin/mlir-translate --mlir-to-llvmir | \
+           ../../thirdparty/llvm-project/build_clang/bin/llc > test.s
 
-clang++ test.s -fPIC -shared -o liblinear.so
+clang++ test.s -fPIC -shared -L../../build/lib/ -lhands_on_mlir_execution_engine -lhands_on_mlir_runner_utils  -o liblinear.so
 
-g++ -fsanitize=address,undefined test.cpp -I../../include/ -I../../thirdparty/llvm-project/mlir/include/ -L./ -L../../build/lib/ -lhands_on_mlir_runner_utils -llinear -Wl,-rpath=./ -Wl,-rpath=../../build/lib -o run
+clang++ test.cpp -I../../include/ -I../../thirdparty/llvm-project/mlir/include/ -I../../thirdparty/llvm-project/llvm/include/ -I../../thirdparty/llvm-project/build/include/ -L./ -L../../build/lib/ -lhands_on_mlir_runner_utils -llinear -lhands_on_mlir_execution_engine -Wl,-rpath,../../build/lib -Wl,-rpath,./ -stdlib=libc++ -std=c++17 -o run
 
 ./run

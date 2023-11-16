@@ -66,6 +66,13 @@ func::FuncOp lookupOrCreateAllocByMemRefF32Fn(ModuleOp moduleOp) {
                           {UnrankedMemRefType::get(Float32Type::get(ctx), 0)});
 }
 
+func::FuncOp lookupOrCreateArgNumFn(ModuleOp moduleOp, StringRef prefix) {
+  auto ctx = moduleOp.getContext();
+  SmallVector<char> name;
+  return lookupOrCreateFn(moduleOp, (prefix + kArgNum).toStringRef(name), {},
+                          IntegerType::get(ctx, 32));
+}
+
 func::FuncOp lookupOrCreateDeallocF32Fn(ModuleOp moduleOp) {
   auto ctx = moduleOp->getContext();
   return lookupOrCreateFn(moduleOp, kDeallocF32,
