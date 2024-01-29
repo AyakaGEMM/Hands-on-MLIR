@@ -80,7 +80,7 @@ struct UnifyFuncWithBody : public OpRewritePattern<LLVM::LLVMFuncOp> {
   LogicalResult matchAndRewrite(LLVM::LLVMFuncOp op,
                                 PatternRewriter &rewriter) const override {
     if (op.getBlocks().empty() ||
-        rewrited.find(op.getSymName().str()) != rewrited.end()) {
+        rewrote.find(op.getSymName().str()) != rewrote.end()) {
       return failure();
     }
 
@@ -145,22 +145,22 @@ struct UnifyFuncWithBody : public OpRewritePattern<LLVM::LLVMFuncOp> {
       rewriter.create<LLVM::ReturnOp>(loc, ValueRange{});
     }
 
-    rewrited.insert(unifiedFunc.getSymName().str());
-    rewrited.insert(op.getSymName().str());
+    rewrote.insert(unifiedFunc.getSymName().str());
+    rewrote.insert(op.getSymName().str());
 
     return success();
   }
 
-  static std::set<std::string> rewrited;
+  static std::set<std::string> rewrote;
 };
 
-std::set<std::string> UnifyFuncWithBody::rewrited;
+std::set<std::string> UnifyFuncWithBody::rewrote;
 
 LogicalResult UnifyLLVMFuncInterfacePass::initialize(MLIRContext *ctx) {
   RewritePatternSet patternList(ctx);
   patternList.add<UnifyFuncWithBody>(ctx);
   patterns = std::move(patternList);
-  UnifyFuncWithBody::rewrited.clear();
+  UnifyFuncWithBody::rewrote.clear();
   return success();
 }
 

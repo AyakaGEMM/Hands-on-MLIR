@@ -71,7 +71,7 @@ def HOM_TransposeOp : HOM_Op<"transpose",
     %0 = hom.transpose %arg0, dims = [2, 1, 0] : (tensor<1x2x3xi32>) -> tensor<3x2x1xi32>
     ```
   }];
-  
+
   let arguments = (ins
     HOM_Tensor:$operand,
     HOM_Int32Or64Tensor:$permutation
@@ -94,7 +94,7 @@ def HOM_MatmulOp : HOM_Op<"matmul",
     %0 = hom.transpose %arg0, dims = [2, 1, 0] : (tensor<1x2x3xi32>) -> tensor<3x2x1xi32>
     ```
   }];
-  
+
   let arguments = (ins
     HOM_Tensor3D:$operand0,
     HOM_Tensor3D:$operand1
@@ -117,7 +117,7 @@ def HOM_MatmulAddOp : HOM_Op<"matmul_add",
     %0 = hom.transpose %arg0, dims = [2, 1, 0] : (tensor<1x2x3xi32>) -> tensor<3x2x1xi32>
     ```
   }];
-  
+
   let arguments = (ins
     HOM_Tensor3D:$operand0,
     HOM_Tensor3D:$operand1,

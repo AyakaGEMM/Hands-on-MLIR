@@ -1,8 +1,9 @@
-##===- CMakeLists.txt - HANDS_ON_MLIR-mlir cmake root -----------------*- cmake -*-===//
-##
-## Configure the HANDS_ON_MLIR-mlir build.
-##
-##===----------------------------------------------------------------------===//
+# ===- CMakeLists.txt - HANDS_ON_MLIR-mlir cmake root -----------------*- cmake
+# -*-===//
+#
+# Configure the HANDS_ON_MLIR-mlir build.
+#
+# ===----------------------------------------------------------------------===//
 
 cmake_minimum_required(VERSION 3.10)
 
@@ -14,28 +15,29 @@ if(POLICY CMP0116)
   cmake_policy(SET CMP0116 OLD)
 endif()
 
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Project setup and globals
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 
 project(Hands-on-MLIR LANGUAGES CXX C)
-  
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
 # add_compile_options(-fsanitize=address,undefined)
 # add_link_options(-fsanitize=address,undefined)
 
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Options and settings
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 
 option(LLVM_INCLUDE_TOOLS "Generate build targets for the LLVM tools." ON)
-option(LLVM_BUILD_TOOLS "Build the LLVM tools. If OFF, just generate build targets." ON)
+option(LLVM_BUILD_TOOLS
+       "Build the LLVM tools. If OFF, just generate build targets." ON)
 
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # MLIR/LLVM Configuration
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 find_package(MLIR REQUIRED CONFIG)
 find_package(MHLO REQUIRED CONFIG)
 
@@ -50,9 +52,9 @@ include(AddLLVM)
 include(AddMLIR)
 include(HandleLLVMOptions)
 
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # HANDS_ON_MLIR configuration
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 
 # HANDS_ON_MLIR project.
 set(HANDS_ON_MLIR_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
@@ -61,7 +63,9 @@ set(HANDS_ON_MLIR_INCLUDE_DIR ${HANDS_ON_MLIR_SOURCE_DIR}/include/)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${HANDS_ON_MLIR_BINARY_DIR})
 
-set(HANDS_ON_MLIR_EXAMPLES OFF CACHE BOOL "Build examples")
+set(HANDS_ON_MLIR_EXAMPLES
+    OFF
+    CACHE BOOL "Build examples")
 
 # Add MLIR and LLVM headers to the include path
 include_directories(${LLVM_INCLUDE_DIRS})
@@ -77,16 +81,16 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 include_directories(${HANDS_ON_MLIR_SOURCE_DIR}/lib)
 include_directories(${HANDS_ON_MLIR_SOURCE_DIR}/thirdparty/half-2.2.0/include)
 
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Hardware detection
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check_simd.cmake)
 check_simd()
 
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Directory setup
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 
 add_subdirectory(cmake)
 add_subdirectory(include)

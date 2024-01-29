@@ -1,10 +1,10 @@
 # Hands-on-MLIR
 
-A simple project to optimize `linalg.matmul` using mlir framwork. Currently developing in progress. Feel free to create an issue if you have any suggestions or problems.
+A simple project to optimize `linalg.matmul` using mlir framework. Currently developing in progress. Feel free to create an issue if you have any suggestions or problems.
 
 # What can it do?
 
-Currently, this project can lower the `linalg.matmul` to `affine` dialect with tiling. Also, this project provide a simple benchmark to meassure the optimization's gFlops. However, it is not fast right now.(at about 2 gFlops compared to ~100 gFlops of mkl performance)
+Currently, this project can lower the `linalg.matmul` to `affine` dialect with tiling. Also, this project provide a simple benchmark to measure the optimization's gFlops. However, it is not fast right now.(at about 2 gFlops compared to ~100 gFlops of mkl performance)
 
 # To-do
 

@@ -25,7 +25,7 @@ using namespace vector;
 
 namespace {
 
-struct ValueToRange { // Work around for Value to Range convertion.
+struct ValueToRange { // Work around for Value to Range conversion.
   SmallVector<Value> v_vector;
   ArrayRef<Value> ref;
   ValueRange vr;

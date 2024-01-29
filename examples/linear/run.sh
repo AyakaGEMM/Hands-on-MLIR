@@ -1,4 +1,4 @@
-../../build/bin/hands-on-opt --tosa-layerwise-constant-fold --tosa-to-hom --hom-to-func --extract-init-func -convert-func-to-llvm -finalize-memref-to-llvm -convert-arith-to-llvm -unify-llvm-func-interface tosa.mlir | \
+../../build/bin/hands-on-opt --tosa-layerwise-constant-fold --tosa-to-hom --hom-to-func --extract-init-func -convert-func-to-llvm -finalize-memref-to-llvm -convert-arith-to-llvm -unify-llvm-func-interface b.mlir | \
            ../../thirdparty/llvm-project/build/bin/mlir-translate --mlir-to-llvmir | \
            ../../thirdparty/llvm-project/build_clang/bin/llc > test.s
 

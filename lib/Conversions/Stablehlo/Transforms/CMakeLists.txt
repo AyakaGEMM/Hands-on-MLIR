@@ -1,17 +1,15 @@
-add_mlir_library(StablehloHOMTransforms
+add_mlir_library(
+  StablehloHOMTransforms
   StablehloToHOM.cpp
-
   DEPENDS
   StablehloMOHTransformsPassIncGen
   StablehloMOHPDLLPatternsIncGen
   WeightsEngine
-
   LINK_COMPONENTS
   Core
-
-  LINK_LIBS PUBLIC
+  LINK_LIBS
+  PUBLIC
   MLIRIR
   MLIRPass
   MLIRTransforms
-  WeightsEngine
-)
+  WeightsEngine)

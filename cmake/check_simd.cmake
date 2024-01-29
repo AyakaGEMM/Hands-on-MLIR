@@ -1,22 +1,22 @@
-
 macro(CHECK_SIMD)
 
   include(CheckCXXSourceRuns)
 
-#-------------------------------------------------------------------------------
-# Check Intel SSE
-#-------------------------------------------------------------------------------
+  # -------------------------------------------------------------------------------
+  # Check Intel SSE
+  # -------------------------------------------------------------------------------
 
   set(CMAKE_REQUIRED_FLAGS -msse)
   check_cxx_source_runs(
     "
     #include <immintrin.h>
-    int main() {   
+    int main() {
       __m128 x;
       x = _mm_set_ps(1.0f,1.0f,1.0f,1.0f);
       return 0;
     }
-    " HAVE_SSE)
+    "
+    HAVE_SSE)
 
   if(${HAVE_SSE})
     message(STATUS "\tSSE support - yes")
@@ -24,9 +24,9 @@ macro(CHECK_SIMD)
     message(STATUS "\tSSE support - no")
   endif(${HAVE_SSE})
 
-#-------------------------------------------------------------------------------
-# Check Intel AVX2
-#-------------------------------------------------------------------------------
+  # -------------------------------------------------------------------------------
+  # Check Intel AVX2
+  # -------------------------------------------------------------------------------
 
   set(CMAKE_REQUIRED_FLAGS -mavx2)
   check_cxx_source_runs(
@@ -38,7 +38,8 @@ macro(CHECK_SIMD)
       __m256i b = _mm256_bslli_epi128(a, 1);
       return 0;
     }
-    " HAVE_AVX2)
+    "
+    HAVE_AVX2)
 
   if(${HAVE_AVX2})
     message(STATUS "\tAVX2 support - yes")
@@ -46,20 +47,21 @@ macro(CHECK_SIMD)
     message(STATUS "\tAVX2 support - no")
   endif(${HAVE_AVX2})
 
-#-------------------------------------------------------------------------------
-# Check Intel AVX512
-#-------------------------------------------------------------------------------
+  # -------------------------------------------------------------------------------
+  # Check Intel AVX512
+  # -------------------------------------------------------------------------------
 
-SET(CMAKE_REQUIRED_FLAGS -mavx512f)
-check_cxx_source_runs(
-  "
+  set(CMAKE_REQUIRED_FLAGS -mavx512f)
+  check_cxx_source_runs(
+    "
   #include <immintrin.h>
   int main() {
     float data[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     __m512 vector = _mm512_loadu_ps(data);
     return 0;
   }
-  " HAVE_AVX512)
+  "
+    HAVE_AVX512)
 
   if(${HAVE_AVX512})
     message(STATUS "\tAVX512 support - yes")
@@ -67,9 +69,9 @@ check_cxx_source_runs(
     message(STATUS "\tAVX512 support - no")
   endif(${HAVE_AVX512})
 
-#-------------------------------------------------------------------------------
-# Check Arm Neon
-#-------------------------------------------------------------------------------
+  # -------------------------------------------------------------------------------
+  # Check Arm Neon
+  # -------------------------------------------------------------------------------
 
   check_cxx_source_runs(
     "
@@ -80,7 +82,8 @@ check_cxx_source_runs(
       a = vld1q_f32(A);
       return 0;
     }
-    " HAVE_NEON)
+    "
+    HAVE_NEON)
 
   if(${HAVE_NEON})
     message(STATUS "\tArm Neon support - yes")
