@@ -18,8 +18,6 @@
 
 #include "HOM/HOMOps.h"
 #include "HOM/Passes.h"
-#include "stablehlo/dialect/ChloOps.h"
-#include "stablehlo/dialect/StablehloOps.h"
 
 namespace mlir {
 namespace hands_on_mlir {
@@ -36,7 +34,6 @@ int main(int argc, char **argv) {
   mlir::hands_on_mlir::hom::registerExtractInitFuncPass();
   mlir::hands_on_mlir::hom::registerHOMFusionPass();
   mlir::hands_on_mlir::hom::registerHOMToFuncPass();
-  mlir::hands_on_mlir::hom::registerStablehloToHOMPass();
   mlir::hands_on_mlir::hom::registerTosaToHOMPass();
   mlir::hands_on_mlir::hom::registerUnifyLLVMFuncInterfacePass();
 
@@ -46,8 +43,6 @@ int main(int argc, char **argv) {
   // Register dialects in buddy-mlir project.
   // clang-format off
   registry.insert<mlir::hands_on_mlir::hom::HOMDialect>();
-  registry.insert<mlir::stablehlo::StablehloDialect>();
-  registry.insert<mlir::chlo::ChloDialect>();
 
   // clang-format on
 

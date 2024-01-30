@@ -56,6 +56,7 @@ struct ConvertTosaConstOp : public OpRewritePattern<tosa::ConstOp> {
 
   LogicalResult matchAndRewrite(tosa::ConstOp op,
                                 PatternRewriter &rewriter) const override {
+    // return failure();
     auto loc = op.getLoc();
     auto value = op.getValueAttr();
 

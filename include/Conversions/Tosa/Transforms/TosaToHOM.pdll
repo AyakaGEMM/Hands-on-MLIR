@@ -1,0 +1,17 @@
+#include "HOM/HOMOps.td"
+#include "mlir/Dialect/Tosa/IR/TosaOps.td"
+
+// Softmax
+Pattern {
+    let attr: Attr;
+    let input: Value<_: Tosa_Tensor>;
+    let Reducemax = op<tosa.reduce_max>(input) {axis = attr};
+    let ExpSub = op<tosa.exp>(op<tosa.sub>(input, Reducemax));
+    let ReciReducesum = op<tosa.reciprocal>(op<tosa.reduce_sum>(ExpSub) {axis=attr});
+    let root = op<tosa.mul>(ExpSub, ReciReducesum);
+
+    replace root with op<hom.softmax>(input) {axis=attr};
+}
+
+// Layernorm
+// Pattern {}

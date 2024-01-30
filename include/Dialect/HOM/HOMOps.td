@@ -149,4 +149,22 @@ def HOM_AddOp : HOM_Op<"add", [
   );
 }
 
+def HOM_SoftmaxOp : HOM_Op<"softmax", [
+    Commutative,
+    SameOperandsAndResultElementType]> {
+  let summary = "Softmax operator";
+
+  let description = [{Do softmax.
+  }];
+
+  let arguments = (ins
+    HOM_Tensor:$input,
+    I32Attr:$axis
+  );
+
+  let results = (outs
+    HOM_Tensor:$output
+  );
+}
+
 #endif // HOM_HOMDIALECT_TD

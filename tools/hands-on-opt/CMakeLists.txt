@@ -7,15 +7,12 @@ target_link_libraries(
   hands-on-opt
   PRIVATE ${dialect_libs}
           ${conversion_libs}
-          ChloOps
           HOMFuncTransforms
           MLIROptLib
           MLIRArithDialect
           MatMulCPUOptimization
           MLIRHOM
           WeightsEngine
-          StablehloOps
-          StablehloHOMTransforms
           TosaHOMTransforms)
 
 mlir_check_all_link_libraries(hands-on-opt)

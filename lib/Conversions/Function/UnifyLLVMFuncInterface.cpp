@@ -26,7 +26,6 @@ limitations under the License.
 #include "Conversions/Function/Passes.h"
 #include "HOM/HOMOps.h"
 #include "WeightsEngine/WeightsEngine.h"
-#include "mhlo/utils/type_conversion.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -87,16 +86,15 @@ struct UnifyFuncWithBody : public OpRewritePattern<LLVM::LLVMFuncOp> {
     auto ctx = op->getContext();
     auto loc = op.getLoc();
 
-    auto i8PtrPtrTy = LLVM::LLVMPointerType::get(
-        LLVM::LLVMPointerType::get(rewriter.getType<IntegerType>(8)));
     auto unifiedFuncTy = LLVM::LLVMFunctionType::get(
-        LLVM::LLVMVoidType::get(ctx), i8PtrPtrTy, false);
+        LLVM::LLVMVoidType::get(ctx), rewriter.getType<LLVM::LLVMPointerType>(),
+        false);
 
     auto unifiedFunc = rewriter.create<LLVM::LLVMFuncOp>(
         loc, "_hom_ciface_" + op.getSymName().str(), unifiedFuncTy,
         op.getLinkage());
 
-    rewriter.updateRootInPlace(
+    rewriter.modifyOpInPlace(
         op, [&]() { op.setSymName("_hom_" + op.getSymName().str()); });
 
     {
@@ -112,15 +110,14 @@ struct UnifyFuncWithBody : public OpRewritePattern<LLVM::LLVMFuncOp> {
       for (auto [index, arg] : llvm::enumerate(op.getArguments())) {
         auto argIndex = rewriter.create<LLVM::ConstantOp>(
             loc, IntegerType::get(ctx, 64), index);
-        auto argPtrPtr = rewriter.create<LLVM::GEPOp>(loc, i8PtrPtrTy, argsPtr,
-                                                      argIndex.getRes());
-        Operation *argPtr =
-            rewriter.create<LLVM::LoadOp>(loc, argPtrPtr.getRes());
+        auto argPtrPtr = rewriter.create<LLVM::GEPOp>(
+            loc, rewriter.getType<LLVM::LLVMPointerType>(),
+            rewriter.getType<LLVM::LLVMPointerType>(), argsPtr,
+            argIndex.getRes());
+        auto argPtr = rewriter.create<LLVM::LoadOp>(
+            loc, rewriter.getType<LLVM::LLVMPointerType>(), argPtrPtr.getRes());
         auto argTy = arg.getType();
-        argPtr = rewriter.create<LLVM::BitcastOp>(
-            loc, LLVM::LLVMPointerType::get(argTy), argPtr->getResult(0));
-        auto load =
-            rewriter.create<LLVM::LoadOp>(loc, argTy, argPtr->getResult(0));
+        auto load = rewriter.create<LLVM::LoadOp>(loc, argTy, argPtr);
         args.push_back(load.getRes());
       }
 
@@ -131,13 +128,12 @@ struct UnifyFuncWithBody : public OpRewritePattern<LLVM::LLVMFuncOp> {
               callOldFunc.getResult().getType()) == nullptr) {
         auto retIndex = rewriter.create<LLVM::ConstantOp>(
             loc, IntegerType::get(ctx, 64), op.getNumArguments());
-        auto retPtrPtr = rewriter.create<LLVM::GEPOp>(loc, i8PtrPtrTy, argsPtr,
-                                                      retIndex.getRes());
-        Operation *retPtr =
-            rewriter.create<LLVM::LoadOp>(loc, retPtrPtr.getRes());
-        retPtr = rewriter.create<LLVM::BitcastOp>(
-            loc, LLVM::LLVMPointerType::get(callOldFunc.getResult().getType()),
-            retPtr->getResult(0));
+        auto retPtrPtr = rewriter.create<LLVM::GEPOp>(
+            loc, rewriter.getType<LLVM::LLVMPointerType>(),
+            rewriter.getType<LLVM::LLVMPointerType>(), argsPtr,
+            retIndex.getRes());
+        Operation *retPtr = rewriter.create<LLVM::LoadOp>(
+            loc, rewriter.getType<LLVM::LLVMPointerType>(), retPtrPtr.getRes());
         rewriter.create<LLVM::StoreOp>(loc, callOldFunc.getResult(),
                                        retPtr->getResult(0));
       }

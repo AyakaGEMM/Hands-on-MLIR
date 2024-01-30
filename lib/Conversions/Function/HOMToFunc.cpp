@@ -24,7 +24,6 @@ limitations under the License.
 #include "Conversions/Function/Passes.h"
 #include "HOM/HOMOps.h"
 #include "WeightsEngine/WeightsEngine.h"
-#include "mhlo/utils/type_conversion.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"

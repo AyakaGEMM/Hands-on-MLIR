@@ -29,7 +29,7 @@ namespace hom {
 
 #define GEN_PASS_DECL_STABLEHLOTOHOMPASS
 #define GEN_PASS_REGISTRATION
-#include "Conversions/Stablehlo/Passes.h.inc"
+// #include "Conversions/Stablehlo/Passes.h.inc"
 
 } // namespace hom
 } // namespace hands_on_mlir
