@@ -23,7 +23,7 @@ class BertWrapper(torch.nn.Module):
     def __init__(self):
         super().__init__()
         config = BertConfig().from_pretrained("bert-base-uncased")
-        config.num_hidden_layers = 1
+        config.num_hidden_layers = 2
         config.hidden_size = 24
         self.model = BertForMaskedLM(config)
 

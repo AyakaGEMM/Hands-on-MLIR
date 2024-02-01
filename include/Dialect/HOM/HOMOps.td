@@ -167,4 +167,23 @@ def HOM_SoftmaxOp : HOM_Op<"softmax", [
   );
 }
 
+def HOM_LayernormOp : HOM_Op<"layernorm", [
+    Commutative,
+    SameOperandsAndResultElementType]> {
+  let summary = "Layernorm operator";
+
+  let description = [{Do layernorm.
+  }];
+
+  let arguments = (ins
+    HOM_Tensor:$input,
+    F32Attr:$eps,
+    I32Attr:$axis
+  );
+
+  let results = (outs
+    HOM_Tensor:$output
+  );
+}
+
 #endif // HOM_HOMDIALECT_TD

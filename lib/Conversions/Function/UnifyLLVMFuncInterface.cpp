@@ -85,10 +85,10 @@ struct UnifyFuncWithBody : public OpRewritePattern<LLVM::LLVMFuncOp> {
 
     auto ctx = op->getContext();
     auto loc = op.getLoc();
+    auto llvmPtrTy = rewriter.getType<LLVM::LLVMPointerType>();
 
     auto unifiedFuncTy = LLVM::LLVMFunctionType::get(
-        LLVM::LLVMVoidType::get(ctx), rewriter.getType<LLVM::LLVMPointerType>(),
-        false);
+        LLVM::LLVMVoidType::get(ctx), llvmPtrTy, false);
 
     auto unifiedFunc = rewriter.create<LLVM::LLVMFuncOp>(
         loc, "_hom_ciface_" + op.getSymName().str(), unifiedFuncTy,
@@ -111,11 +111,9 @@ struct UnifyFuncWithBody : public OpRewritePattern<LLVM::LLVMFuncOp> {
         auto argIndex = rewriter.create<LLVM::ConstantOp>(
             loc, IntegerType::get(ctx, 64), index);
         auto argPtrPtr = rewriter.create<LLVM::GEPOp>(
-            loc, rewriter.getType<LLVM::LLVMPointerType>(),
-            rewriter.getType<LLVM::LLVMPointerType>(), argsPtr,
-            argIndex.getRes());
-        auto argPtr = rewriter.create<LLVM::LoadOp>(
-            loc, rewriter.getType<LLVM::LLVMPointerType>(), argPtrPtr.getRes());
+            loc, llvmPtrTy, llvmPtrTy, argsPtr, argIndex.getRes());
+        auto argPtr =
+            rewriter.create<LLVM::LoadOp>(loc, llvmPtrTy, argPtrPtr.getRes());
         auto argTy = arg.getType();
         auto load = rewriter.create<LLVM::LoadOp>(loc, argTy, argPtr);
         args.push_back(load.getRes());
@@ -129,11 +127,9 @@ struct UnifyFuncWithBody : public OpRewritePattern<LLVM::LLVMFuncOp> {
         auto retIndex = rewriter.create<LLVM::ConstantOp>(
             loc, IntegerType::get(ctx, 64), op.getNumArguments());
         auto retPtrPtr = rewriter.create<LLVM::GEPOp>(
-            loc, rewriter.getType<LLVM::LLVMPointerType>(),
-            rewriter.getType<LLVM::LLVMPointerType>(), argsPtr,
-            retIndex.getRes());
-        Operation *retPtr = rewriter.create<LLVM::LoadOp>(
-            loc, rewriter.getType<LLVM::LLVMPointerType>(), retPtrPtr.getRes());
+            loc, llvmPtrTy, llvmPtrTy, argsPtr, retIndex.getRes());
+        Operation *retPtr =
+            rewriter.create<LLVM::LoadOp>(loc, llvmPtrTy, retPtrPtr.getRes());
         rewriter.create<LLVM::StoreOp>(loc, callOldFunc.getResult(),
                                        retPtr->getResult(0));
       }

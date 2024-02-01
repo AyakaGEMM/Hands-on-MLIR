@@ -13,6 +13,7 @@ namespace hands_on_mlir {
 namespace hom {
 
 #define GEN_PASS_DECL_HOMFUSIONPASS
+#define GEN_PASS_DECL_HOMSERIALIZEWEIGHTPASS
 #define GEN_PASS_REGISTRATION
 #include "HOM/Passes.h.inc"
 

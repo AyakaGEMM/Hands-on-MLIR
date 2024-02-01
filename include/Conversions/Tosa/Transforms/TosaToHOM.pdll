@@ -13,5 +13,40 @@ Pattern {
     replace root with op<hom.softmax>(input) {axis=attr};
 }
 
+Rewrite getEps(op: Op) -> F32Attr[{
+    auto value = dyn_cast<tosa::ConstOp>(op).getValueAttr();
+    auto elementType = value.getElementType();
+
+    auto data = value.getValues<APFloat>()[0].convertToFloat();
+    return rewriter.getFloatAttr(elementType, data);
+}];
+
+Constraint legalEps(op: Op) [{
+    auto constOp = dyn_cast<tosa::ConstOp>(op);
+    if(constOp){
+        auto value = constOp.getValueAttr();
+        auto elementType = value.getElementType();
+        return success(elementType.isF32() && value.getNumElements() == 1);
+    }
+    return failure();
+}];
+
 // Layernorm
-// Pattern {}
+Pattern {
+    let input: Value<_: Tosa_Tensor>;
+    let lastDim: Attr;
+    let shift = attr<"0 : i8">;
+    let eps = op<tosa.const>;
+    legalEps(eps);
+    let reciprocalElementNum = op<tosa.const>;
+    let E = op<tosa.mul>(op<tosa.reduce_sum>(input) {axis=lastDim}, reciprocalElementNum) {shift=shift};
+    let SubE = op<tosa.sub>(input, E);
+    let Var = op<tosa.mul>(op<tosa.reduce_sum>(op<tosa.mul>(SubE, SubE)) {axis=lastDim}, reciprocalElementNum) {shift=shift};
+
+    let root = op<tosa.mul>(op<tosa.sub>(input, E), op<tosa.rsqrt>(op<tosa.add>(Var, eps))) {shift=shift};
+
+    rewrite root with {
+        let epsAttr = getEps(eps);
+        replace root with op<hom.layernorm>(input) {eps=epsAttr, axis=lastDim};
+    };
+}

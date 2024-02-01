@@ -33,6 +33,7 @@ int main(int argc, char **argv) {
   mlir::hands_on_mlir::registerMatMulCPUOptimizePass();
   mlir::hands_on_mlir::hom::registerExtractInitFuncPass();
   mlir::hands_on_mlir::hom::registerHOMFusionPass();
+  mlir::hands_on_mlir::hom::registerHOMSerializeWeightPass();
   mlir::hands_on_mlir::hom::registerHOMToFuncPass();
   mlir::hands_on_mlir::hom::registerTosaToHOMPass();
   mlir::hands_on_mlir::hom::registerUnifyLLVMFuncInterfacePass();
