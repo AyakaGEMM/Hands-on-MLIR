@@ -3,50 +3,123 @@
 
 // Softmax
 Pattern {
-    let attr: Attr;
-    let input: Value<_: Tosa_Tensor>;
-    let Reducemax = op<tosa.reduce_max>(input) {axis = attr};
-    let ExpSub = op<tosa.exp>(op<tosa.sub>(input, Reducemax));
-    let ReciReducesum = op<tosa.reciprocal>(op<tosa.reduce_sum>(ExpSub) {axis=attr});
-    let root = op<tosa.mul>(ExpSub, ReciReducesum);
+  let attr : Attr;
+  let input : Value<_ : Tosa_Tensor>;
+  let Reducemax = op<tosa.reduce_max>(input){axis = attr};
+  let ExpSub = op<tosa.exp>(op<tosa.sub>(input, Reducemax));
+  let ReciReducesum =
+      op<tosa.reciprocal>(op<tosa.reduce_sum>(ExpSub){axis = attr});
+  let root = op<tosa.mul>(ExpSub, ReciReducesum);
 
-    replace root with op<hom.softmax>(input) {axis=attr};
+  replace root with op<hom.softmax>(input){axis = attr};
 }
 
-Rewrite getEps(op: Op) -> F32Attr[{
-    auto value = dyn_cast<tosa::ConstOp>(op).getValueAttr();
+Rewrite getSingleFloatValue(op
+                            : Op)
+    ->F32Attr[{
+      auto value = dyn_cast<tosa::ConstOp>(op).getValueAttr();
+      auto elementType = value.getElementType();
+
+      auto data = value.getValues<APFloat>()[0].convertToFloat();
+      return rewriter.getFloatAttr(elementType, data);
+    }];
+
+Constraint isSingleFloatConstant(op
+                                 : Op)[{
+  auto constOp = dyn_cast<tosa::ConstOp>(op);
+  if (constOp) {
+    auto value = constOp.getValueAttr();
     auto elementType = value.getElementType();
-
-    auto data = value.getValues<APFloat>()[0].convertToFloat();
-    return rewriter.getFloatAttr(elementType, data);
-}];
-
-Constraint legalEps(op: Op) [{
-    auto constOp = dyn_cast<tosa::ConstOp>(op);
-    if(constOp){
-        auto value = constOp.getValueAttr();
-        auto elementType = value.getElementType();
-        return success(elementType.isF32() && value.getNumElements() == 1);
-    }
-    return failure();
+    return success(elementType.isF32() && value.getNumElements() == 1);
+  }
+  return failure();
 }];
 
 // Layernorm
 Pattern {
-    let input: Value<_: Tosa_Tensor>;
-    let lastDim: Attr;
-    let shift = attr<"0 : i8">;
-    let eps = op<tosa.const>;
-    legalEps(eps);
-    let reciprocalElementNum = op<tosa.const>;
-    let E = op<tosa.mul>(op<tosa.reduce_sum>(input) {axis=lastDim}, reciprocalElementNum) {shift=shift};
-    let SubE = op<tosa.sub>(input, E);
-    let Var = op<tosa.mul>(op<tosa.reduce_sum>(op<tosa.mul>(SubE, SubE)) {axis=lastDim}, reciprocalElementNum) {shift=shift};
+  let input : Value<_ : Tosa_Tensor>;
+  let lastDim : Attr;
+  let shift = attr<"0 : i8">;
+  let eps = op<tosa.const>;
+  isSingleFloatConstant(eps);
+  let reciprocalElementNum = op<tosa.const>;
+  let E = op<tosa.mul>(op<tosa.reduce_sum>(input){axis = lastDim},
+                       reciprocalElementNum){shift = shift};
+  let SubE = op<tosa.sub>(input, E);
+  let Var = op<tosa.mul>(
+      op<tosa.reduce_sum>(op<tosa.mul>(SubE, SubE)){axis = lastDim},
+      reciprocalElementNum){shift = shift};
 
-    let root = op<tosa.mul>(op<tosa.sub>(input, E), op<tosa.rsqrt>(op<tosa.add>(Var, eps))) {shift=shift};
+  let root =
+      op<tosa.mul>(op<tosa.sub>(input, E),
+                   op<tosa.rsqrt>(op<tosa.add>(Var, eps))){shift = shift};
 
-    rewrite root with {
-        let epsAttr = getEps(eps);
-        replace root with op<hom.layernorm>(input) {eps=epsAttr, axis=lastDim};
-    };
+  rewrite root with {
+    let epsAttr = getSingleFloatValue(eps);
+    replace root with op<hom.layernorm>(input){eps = epsAttr, axis = lastDim};
+  };
+}
+
+Constraint geluConst0(op
+                      : Op)[{
+  if (isSingleFloatConstantPDLFn(rewriter, op).succeeded()) {
+    auto value = getSingleFloatValuePDLFn(rewriter, op);
+    auto data = value.getValueAsDouble();
+    return success(std::abs(0.707106769 - data) < 1e-8);
+  }
+  return failure();
+}];
+
+Constraint geluConst1(op : Op)[{ return success(); }];
+
+Constraint geluConst2(op : Op)[{ return success(); }];
+
+Constraint geluConst3(op : Op)[{ return success(); }];
+
+Constraint geluConst4(op : Op)[{ return success(); }];
+
+Constraint geluConst5(op : Op)[{ return success(); }];
+
+Constraint geluConst6(op : Op)[{ return success(); }];
+
+Constraint geluConst7(op : Op)[{ return success(); }];
+
+// GeLU
+Pattern {
+  let shift = attr<"0 : i8">;
+  let const0 = op<tosa.const>;
+  geluConst0(const0);
+  let const1 = op<tosa.const>;
+  geluConst1(const1);
+  let const2 = op<tosa.const>;
+  geluConst2(const2);
+  let const3 = op<tosa.const>;
+  geluConst3(const3);
+  let const4 = op<tosa.const>;
+  geluConst4(const4);
+  let const5 = op<tosa.const>;
+  geluConst5(const5);
+  let const6 = op<tosa.const>;
+  geluConst6(const6);
+  let const7 = op<tosa.const>;
+  geluConst7(const7);
+  let inputMul = op<tosa.mul>(input
+                              : Value < _
+                              : Tosa_Tensor >, const0){shift = shift}; // 8
+  let inputMulAbs = op<tosa.abs>(inputMul);                            // 9
+  let inputMulAbsMulMul =
+      op<tosa.mul>(inputMulAbs, inputMulAbs){shift = shift}; // 12
+  let mulAbove =
+      op<tosa.mul>(inputMulAbsMulMul, inputMulAbs){shift = shift}; // 15
+  let reciprocalStuff = op<tosa.reciprocal>(op<tosa.add>(
+      op<tosa.add>(
+          op<tosa.add>(
+              op<tosa.add>(op<tosa.mul>(inputMulAbs, const1){shift = shift},
+                           const2),
+              op<tosa.mul>(inputMulAbsMulMul, const3){shift = shift}),
+          op<tosa.mul>(mulAbove, const4){shift = shift}),
+      op<tosa.mul>(op<tosa.mul>(mulAbove, inputMulAbs){shift = shift},
+                   const5){shift = shift}));
+
+  replace reciprocalStuff with op<hom.add>(input, input);
 }

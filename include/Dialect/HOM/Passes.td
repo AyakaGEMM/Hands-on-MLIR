@@ -23,7 +23,8 @@ def HOMFusionPass : Pass<"hom-fusion", "mlir::func::FuncOp"> {
   ];
 }
 
-def HOMSerializeWeightPass : Pass<"hom-serialize-weight", "mlir::func::FuncOp"> {
+def HOMSerializeWeightPass
+    : Pass<"hom-serialize-weight", "mlir::func::FuncOp"> {
   let summary = "Serialize Weight Pass";
   let dependentDialects = [
     "::mlir::hands_on_mlir::hom::HOMDialect", "::mlir::pdl::PDLDialect",

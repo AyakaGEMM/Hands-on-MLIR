@@ -8,6 +8,14 @@ repos:
     rev: v17.0.6
     hooks:
       - id: clang-format
+        alias: clang-format-pdll-td
+        types_or: [file]
+        args: [--style=LLVM, --verbose]
+        files: ^.*\.(pdll|td)$
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v17.0.6
+    hooks:
+      - id: clang-format
         types_or: [c++, c, cuda]
         args: [--style=LLVM]
         exclude: |

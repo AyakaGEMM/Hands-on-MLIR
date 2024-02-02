@@ -24,12 +24,6 @@ project(Hands-on-MLIR LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
-add_compile_options(-fsanitize=address,undefined)
-add_link_options(-fsanitize=address,undefined)
-add_link_options(-lasan) # Need this WAR on linux for clang. I completely have
-                         # no idea why I need to add these two lines.
-add_link_options(-lubsan)
-
 # -------------------------------------------------------------------------------
 # Options and settings
 # -------------------------------------------------------------------------------
