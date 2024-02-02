@@ -1,0 +1,2 @@
+torch-mlir==20240127.1096
+transformers==4.37.2

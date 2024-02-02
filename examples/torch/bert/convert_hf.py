@@ -1,9 +1,3 @@
-import sys
-
-sys.path.append(
-    "/Users/pzzzzz/MyProjects/torch-mlir/build/tools/torch-mlir/python_packages/torch_mlir"
-)
-
 import torch
 import torch_mlir
 from transformers import BertConfig, BertForMaskedLM, BertTokenizer
@@ -36,9 +30,9 @@ model = BertWrapper()
 model.eval()
 
 with torch.no_grad():
-    a = torch_mlir.compile(
+    module = torch_mlir.compile(
         model, encoded_input_list, output_type="tosa", use_tracing=True
     )
     # output = model(*encoded_input_list)
 with open("bert.mlir", "w") as fl:
-    print(a, file=fl)
+    print(module, file=fl, end="")

@@ -39,6 +39,7 @@ namespace hands_on_mlir {
 namespace hom {
 
 #define GEN_PASS_DEF_HOMFUSIONPASS
+#define GEN_PASS_DEF_HOMSERIALIZEWEIGHTPASS
 #include "HOM/Passes.h.inc"
 
 namespace {
@@ -59,6 +60,26 @@ LogicalResult HOMFusionPass::initialize(MLIRContext *ctx) {
 }
 
 void HOMFusionPass::runOnOperation() {
+  (void)applyPatternsAndFoldGreedily(getOperation(), patterns);
+}
+
+struct HOMSerializeWeightPass
+    : impl::HOMSerializeWeightPassBase<HOMFusionPass> {
+  void runOnOperation() final;
+
+  LogicalResult initialize(MLIRContext *ctx) override;
+
+private:
+  FrozenRewritePatternSet patterns;
+};
+
+LogicalResult HOMSerializeWeightPass::initialize(MLIRContext *ctx) {
+  RewritePatternSet patternList(ctx);
+  patterns = std::move(patternList);
+  return success();
+}
+
+void HOMSerializeWeightPass::runOnOperation() {
   (void)applyPatternsAndFoldGreedily(getOperation(), patterns);
 }
 

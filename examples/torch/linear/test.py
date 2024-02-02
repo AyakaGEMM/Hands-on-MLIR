@@ -25,6 +25,4 @@ x = torch.ones(1, 3, 100)
 
 module = torch_mlir.compile(a, x, output_type="tosa")
 with open("linear.mlir", "w") as fl:
-    print(module, file=fl)
-
-print(a(x))
+    print(module, file=fl, end="")

@@ -28,7 +28,9 @@ model = Wrapper()
 model.eval()
 
 with torch.no_grad():
-    a = torch_mlir.compile(model, hidden_states, output_type="tosa", use_tracing=True)
+    module = torch_mlir.compile(
+        model, hidden_states, output_type="tosa", use_tracing=True
+    )
     # output = model(*encoded_input_list)
 with open("softmax.mlir", "w") as fl:
-    print(a, file=fl)
+    print(module, file=fl, end="")
