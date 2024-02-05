@@ -36,6 +36,11 @@ add_mlir_library(
 target_compile_definitions(hands_on_mlir_runner_utils
                            PRIVATE hands_on_mlir_runner_utils_EXPORTS)
 
+if(ENABLE_CUDA)
+  set(CUTLASS_C_API_SOURCE ExecutionEngine/CutlassCAPI.cu)
+  add_library(cutlass_c_api SHARED ${CUTLASS_C_API_SOURCE})
+endif()
+
 # get_target_property(target_compile_options hands_on_mlir_runner_utils
 # COMPILE_OPTIONS) STRING(REPLACE "-fsanitize=address,undefined" ""
 # target_compile_options ${target_compile_options})

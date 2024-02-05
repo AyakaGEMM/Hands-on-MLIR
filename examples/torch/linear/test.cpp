@@ -2,7 +2,6 @@
 #include "ExecutionEngine/HandsOnRunnerUtils.h"
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
 #include "llvm/Support/Error.h"
-#include <cstdint>
 #include <cstdlib>
 #include <iostream>
 
