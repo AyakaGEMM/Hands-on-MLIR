@@ -42,8 +42,7 @@ def HOM_Int32Tensor : TensorOf<[HOM_Int32]>;
 def HOM_Int32Or64Tensor : TensorOf<[HOM_Int32Or64]>;
 
 // Either ranked or unranked tensor of HOM supported element types.
-// def HOM_Tensor : TensorOf<[HOM_AnyNumber]>;
-def HOM_Tensor : AnyTypeOf<[TensorOf<[HOM_AnyNumber]>]>;
+def HOM_Tensor : TensorOf<[HOM_AnyNumber]>;
 
 // Must be ranked but no further constraints
 def HOM_RankedTensor : RankedTensorOf<[HOM_AnyNumber]>;

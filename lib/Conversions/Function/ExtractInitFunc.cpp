@@ -139,7 +139,8 @@ struct ExtractPattern : public OpRewritePattern<func::FuncOp> {
     auto initFnTy = FunctionType::get(ctx, {}, initAllocTypes);
     initFn.setFunctionType(initFnTy);
 
-    int idx = 0, offset = op.getNumArguments();
+    int idx = 0;
+    /// offset = op.getNumArguments();
     auto unknownLoc = UnknownLoc::get(ctx);
     SmallVector<unsigned int> argIndices;
     SmallVector<Location> argLoc;

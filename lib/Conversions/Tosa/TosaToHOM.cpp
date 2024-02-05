@@ -18,14 +18,16 @@ limitations under the License.
 #include <string>
 #include <utility>
 
-#include "Conversions/Tosa/Transforms/Passes.h"
+#include "Conversions/Tosa/Passes.h"
 #include "HOM/HOMOps.h"
-#include "WeightsEngine/WeightsEngine.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Tosa/IR/TosaOps.h"
+#include "mlir/Dialect/Tosa/Transforms/Passes.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Parser/Parser.h"
+#include "mlir/Pass/PassManager.h"
+#include "mlir/Pass/PassRegistry.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
@@ -37,8 +39,8 @@ namespace hands_on_mlir {
 namespace hom {
 
 #define GEN_PASS_DEF_TOSATOHOMPASS
-#include "Conversions/Tosa/Transforms/Passes.h.inc"
-#include "Conversions/Tosa/Transforms/TosaToHOM.pdll.h.inc"
+#include "Conversions/Tosa/Passes.h.inc"
+#include "Conversions/Tosa/TosaToHOM.pdll.h.inc"
 
 namespace {
 
@@ -49,29 +51,6 @@ struct TosaToHOMPass : impl::TosaToHOMPassBase<TosaToHOMPass> {
 
 private:
   FrozenRewritePatternSet patterns;
-};
-
-struct ConvertTosaConstOp : public OpRewritePattern<tosa::ConstOp> {
-  using OpRewritePattern<tosa::ConstOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(tosa::ConstOp op,
-                                PatternRewriter &rewriter) const override {
-    // return failure();
-    auto loc = op.getLoc();
-    auto value = op.getValueAttr();
-
-    auto idx = gWe.addWeight(value);
-
-    auto constantOP = rewriter.create<ConstantOp>(loc, value.getType(), idx);
-
-    while (!op->getUses().empty()) {
-      op->getUses().begin()->set(constantOP->getResult(0));
-    }
-
-    rewriter.eraseOp(op);
-
-    return success();
-  }
 };
 
 struct ConvertTosaMatmulOp : public OpRewritePattern<tosa::MatMulOp> {
@@ -117,7 +96,6 @@ LogicalResult TosaToHOMPass::initialize(MLIRContext *ctx) {
   RewritePatternSet patternList(ctx);
 
   populateGeneratedPDLLPatterns(patternList);
-  patternList.add<ConvertTosaConstOp>(ctx);
   patternList.add<ConvertTosaMatmulOp>(ctx);
   patterns = std::move(patternList);
   return success();
@@ -128,6 +106,20 @@ void TosaToHOMPass::runOnOperation() {
 }
 
 } // namespace
+
+void registerTosaToHOMPipelines() {
+  PassPipelineRegistration<>(
+      "tosa-to-hom-pipeline",
+      "Convert TOSA operators to hom with some optimization",
+      [](OpPassManager &pm) {
+        tosa::TosaLayerwiseConstantFoldPassOptions tosaConstFoldOption;
+        tosaConstFoldOption.aggressiveReduceConstant = true;
+        pm.addPass(
+            tosa::createTosaLayerwiseConstantFoldPass(tosaConstFoldOption));
+        pm.addPass(createTosaToHOMPass());
+      });
+}
+
 } // namespace hom
 } // namespace hands_on_mlir
 } // namespace mlir

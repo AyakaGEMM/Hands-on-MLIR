@@ -76,6 +76,12 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 include_directories(${HANDS_ON_MLIR_SOURCE_DIR}/lib)
 include_directories(${HANDS_ON_MLIR_SOURCE_DIR}/thirdparty/half-2.2.0/include)
 
+if(ENABLE_CUDA)
+  enable_language(CUDA)
+  find_package(CUDAToolkit REQUIRED)
+  include_directories(${HANDS_ON_MLIR_SOURCE_DIR}/thirdparty/cutlass/include)
+endif()
+
 # -------------------------------------------------------------------------------
 # Hardware detection
 # -------------------------------------------------------------------------------

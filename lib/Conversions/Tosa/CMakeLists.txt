@@ -1,1 +1,15 @@
-add_subdirectory(Transforms)
+add_mlir_library(
+  TosaHOMTransforms
+  TosaToHOM.cpp
+  DEPENDS
+  TosaHOMTransformsPassIncGen
+  TosaHOMPDLLPatternsIncGen
+  WeightsEngine
+  LINK_COMPONENTS
+  Core
+  LINK_LIBS
+  PUBLIC
+  MLIRIR
+  MLIRPass
+  MLIRTransforms
+  WeightsEngine)

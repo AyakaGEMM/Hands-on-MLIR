@@ -8,6 +8,7 @@ add_mlir_library(
   DEPENDS
   MLIRHOMOpsIncGen
   HOMTransformsPassIncGen
+  HOMFusionPDLLPatternsIncGen
   LINK_LIBS
   PUBLIC
   MLIRIR

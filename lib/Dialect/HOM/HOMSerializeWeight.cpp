@@ -18,7 +18,7 @@ limitations under the License.
 #include <string>
 #include <utility>
 
-#include "Conversions/Tosa/Transforms/Passes.h"
+#include "Conversions/Tosa/Passes.h"
 #include "HOM/HOMOps.h"
 #include "WeightsEngine/WeightsEngine.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -31,40 +31,42 @@ limitations under the License.
 #include "llvm/ADT/APInt.h"
 #include "llvm/Support/raw_ostream.h"
 
-#define PASS_NAME "Hom-fusion"
+#define PASS_NAME "hom-serialize-weight"
 #define DEBUG_TYPE PASS_NAME
 
 namespace mlir {
 namespace hands_on_mlir {
 namespace hom {
 
-#define GEN_PASS_DEF_HOMFUSIONPASS
 #define GEN_PASS_DEF_HOMSERIALIZEWEIGHTPASS
 #include "HOM/Passes.h.inc"
 
 namespace {
 
-struct HOMFusionPass : impl::HOMFusionPassBase<HOMFusionPass> {
-  void runOnOperation() final;
+struct SerializeTosaConstOp : public OpRewritePattern<tosa::ConstOp> {
+  using OpRewritePattern<tosa::ConstOp>::OpRewritePattern;
 
-  LogicalResult initialize(MLIRContext *ctx) override;
+  LogicalResult matchAndRewrite(tosa::ConstOp op,
+                                PatternRewriter &rewriter) const override {
+    auto loc = op.getLoc();
+    auto value = op.getValueAttr();
 
-private:
-  FrozenRewritePatternSet patterns;
+    auto idx = gWe.addWeight(value);
+
+    auto constantOP = rewriter.create<ConstantOp>(loc, value.getType(), idx);
+
+    while (!op->getUses().empty()) {
+      op->getUses().begin()->set(constantOP->getResult(0));
+    }
+
+    rewriter.eraseOp(op);
+
+    return success();
+  }
 };
 
-LogicalResult HOMFusionPass::initialize(MLIRContext *ctx) {
-  RewritePatternSet patternList(ctx);
-  patterns = std::move(patternList);
-  return success();
-}
-
-void HOMFusionPass::runOnOperation() {
-  (void)applyPatternsAndFoldGreedily(getOperation(), patterns);
-}
-
 struct HOMSerializeWeightPass
-    : impl::HOMSerializeWeightPassBase<HOMFusionPass> {
+    : impl::HOMSerializeWeightPassBase<HOMSerializeWeightPass> {
   void runOnOperation() final;
 
   LogicalResult initialize(MLIRContext *ctx) override;
@@ -75,6 +77,8 @@ private:
 
 LogicalResult HOMSerializeWeightPass::initialize(MLIRContext *ctx) {
   RewritePatternSet patternList(ctx);
+
+  patternList.add<SerializeTosaConstOp>(ctx);
   patterns = std::move(patternList);
   return success();
 }

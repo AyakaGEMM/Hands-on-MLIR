@@ -25,7 +25,7 @@ def HOM_Dialect : Dialect {
 //===----------------------------------------------------------------------===//
 
 class HOM_Op<string mnemonic, list<Trait> traits = []>
-    : Op<HOM_Dialect, mnemonic, traits>;
+    : Op<HOM_Dialect, mnemonic, !listconcat(traits, [Pure])>;
 
 def HOM_PrintOp : HOM_Op<"print", []> {
   let arguments = (ins F64Tensor : $input);
@@ -33,7 +33,7 @@ def HOM_PrintOp : HOM_Op<"print", []> {
   let assemblyFormat = "$input attr-dict `:` type($input)";
 }
 
-def HOM_ConstantOp : HOM_Op<"constant", [ConstantLike, Pure]> {
+def HOM_ConstantOp : HOM_Op<"constant", [ConstantLike]> {
   let summary = "Constant operation";
   let description = [{
     Produces an `output` tensor from a constant `value`.
@@ -54,8 +54,7 @@ def HOM_ConstantOp : HOM_Op<"constant", [ConstantLike, Pure]> {
   let hasFolder = 1;
 }
 
-def HOM_TransposeOp
-    : HOM_Op<"transpose", [Pure, SameOperandsAndResultElementType]> {
+def HOM_TransposeOp : HOM_Op<"transpose", [SameOperandsAndResultElementType]> {
   let summary = "Transpose operation";
   let description = [{
     Permutes the dimensions of `operand` tensor using `permutation` and produces
@@ -74,7 +73,7 @@ def HOM_TransposeOp
   let results = (outs HOM_Tensor : $output);
 }
 
-def HOM_MatmulOp : HOM_Op<"matmul", [Pure]> {
+def HOM_MatmulOp : HOM_Op<"matmul", []> {
   let summary = "Transpose operation";
   let description = [{
     Permutes the dimensions of `operand` tensor using `permutation` and produces
@@ -86,12 +85,14 @@ def HOM_MatmulOp : HOM_Op<"matmul", [Pure]> {
     ```
   }];
 
-  let arguments = (ins HOM_Tensor3D : $operand0, HOM_Tensor3D : $operand1);
+  let arguments = (ins HOM_RankedTensor
+                   : $operand0, HOM_RankedTensor
+                   : $operand1);
 
-  let results = (outs HOM_Tensor3D : $output);
+  let results = (outs HOM_RankedTensor : $output);
 }
 
-def HOM_MatmulAddOp : HOM_Op<"matmul_add", [Pure]> {
+def HOM_MatmulAddOp : HOM_Op<"matmul_add", []> {
   let summary = "Transpose operation";
   let description = [{
     Permutes the dimensions of `operand` tensor using `permutation` and produces
@@ -103,12 +104,12 @@ def HOM_MatmulAddOp : HOM_Op<"matmul_add", [Pure]> {
     ```
   }];
 
-  let arguments = (ins HOM_Tensor3D
-                   : $operand0, HOM_Tensor3D
+  let arguments = (ins HOM_RankedTensor
+                   : $operand0, HOM_RankedTensor
                    : $operand1, HOM_Tensor
                    : $operand2);
 
-  let results = (outs HOM_Tensor3D : $output);
+  let results = (outs HOM_RankedTensor : $output);
 }
 
 def HOM_AddOp : HOM_Op<"add", [Commutative, SameOperandsAndResultElementType]> {
@@ -123,8 +124,7 @@ def HOM_AddOp : HOM_Op<"add", [Commutative, SameOperandsAndResultElementType]> {
   let results = (outs HOM_Tensor : $output);
 }
 
-def HOM_SoftmaxOp
-    : HOM_Op<"softmax", [Commutative, SameOperandsAndResultElementType]> {
+def HOM_SoftmaxOp : HOM_Op<"softmax", [SameOperandsAndResultElementType]> {
   let summary = "Softmax operator";
 
   let description = [{Do softmax.}];
@@ -134,8 +134,7 @@ def HOM_SoftmaxOp
   let results = (outs HOM_Tensor : $output);
 }
 
-def HOM_LayernormOp
-    : HOM_Op<"layernorm", [Commutative, SameOperandsAndResultElementType]> {
+def HOM_LayernormOp : HOM_Op<"layernorm", [SameOperandsAndResultElementType]> {
   let summary = "Layernorm operator";
 
   let description = [{Do layernorm.}];
@@ -145,13 +144,25 @@ def HOM_LayernormOp
   let results = (outs HOM_Tensor : $output);
 }
 
-def HOM_GeluOp
-    : HOM_Op<"gelu", [Commutative, SameOperandsAndResultElementType]> {
+def HOM_GeluOp : HOM_Op<"gelu", [SameOperandsAndResultElementType]> {
   let summary = "Gelu operator";
 
   let description = [{Do Gelu.}];
 
   let arguments = (ins HOM_Tensor : $input);
+
+  let results = (outs HOM_Tensor : $output);
+}
+
+def HOM_BertMhaOp : HOM_Op<"bert_mha", []> {
+  let summary = "Bert's MHA operator";
+
+  let description = [{Do Bert MHA.}];
+
+  let arguments = (ins HOM_Tensor
+                   : $qkv, HOM_Tensor
+                   : $mask, HOM_Tensor
+                   : $scale);
 
   let results = (outs HOM_Tensor : $output);
 }

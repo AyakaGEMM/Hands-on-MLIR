@@ -16,10 +16,10 @@ limitations under the License.
 include "mlir/Pass/PassBase.td"
 
 def HOMFusionPass : Pass<"hom-fusion", "mlir::func::FuncOp"> {
-  let summary = "Lowering Tosa to HOM";
+  let summary = "HOM Fusion Pass";
   let dependentDialects = [
-    "::mlir::hands_on_mlir::hom::HOMDialect", "::mlir::pdl::PDLDialect",
-    "::mlir::pdl_interp::PDLInterpDialect"
+    "::mlir::hands_on_mlir::hom::HOMDialect", "::mlir::tosa::TosaDialect",
+    "::mlir::pdl::PDLDialect", "::mlir::pdl_interp::PDLInterpDialect"
   ];
 }
 

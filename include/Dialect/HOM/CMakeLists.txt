@@ -5,3 +5,6 @@ add_mlir_doc(HOMOps HOMDialect Dialects/ -gen-dialect-doc)
 set(LLVM_TARGET_DEFINITIONS Passes.td)
 mlir_tablegen(Passes.h.inc -gen-pass-decls -name HOMTransforms)
 add_public_tablegen_target(HOMTransformsPassIncGen)
+
+add_mlir_pdll_library(HOMFusionPDLLPatternsIncGen HOMFusion.pdll
+                      HOMFusion.pdll.h.inc)

@@ -13,12 +13,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-include "mlir/Pass/PassBase.td"
+#ifndef HOM_CONVERSIONS_TOSA_TRANSFORMS_PASSES_H
+#define HOM_CONVERSIONS_TOSA_TRANSFORMS_PASSES_H
 
-def TosaToHOMPass : Pass<"tosa-to-hom", "mlir::func::FuncOp"> {
-  let summary = "Lowering Tosa to HOM";
-  let dependentDialects = [
-    "::mlir::hands_on_mlir::hom::HOMDialect", "::mlir::pdl::PDLDialect",
-    "::mlir::pdl_interp::PDLInterpDialect"
-  ];
-}
+#include <memory>
+
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/PDL/IR/PDL.h"
+#include "mlir/Dialect/PDLInterp/IR/PDLInterp.h"
+#include "mlir/Pass/Pass.h"
+
+namespace mlir {
+namespace hands_on_mlir {
+namespace hom {
+
+#define GEN_PASS_DECL_TOSATOHOMPASS
+#define GEN_PASS_REGISTRATION
+#include "Conversions/Tosa/Passes.h.inc"
+
+void registerTosaToHOMPipelines();
+
+} // namespace hom
+} // namespace hands_on_mlir
+} // namespace mlir
+
+#endif // HOM_CONVERSIONS_TOSA_TRANSFORMS_PASSES_H
