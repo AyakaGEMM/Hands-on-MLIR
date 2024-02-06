@@ -1,33 +1,22 @@
 # Hands-on-MLIR
 
-A simple project to optimize `linalg.matmul` using mlir framework. Currently developing in progress. Feel free to create an issue if you have any suggestions or problems.
-
-# What can it do?
-
-Currently, this project can lower the `linalg.matmul` to `affine` dialect with tiling. Also, this project provide a simple benchmark to measure the optimization's gFlops. However, it is not fast right now.(at about 2 gFlops compared to ~100 gFlops of mkl performance)
+WIP. Heavily developing in progress currently, so no document available. Should be usable by the end of February 2024.
 
 # To-do
 
-+ explicit affine data packing mechanism. (`affineDataCopyGenerate` simply cannot work when the tensor shape is unknown. Maybe I should implement it myself.)
-+ vector ld/st & compute.
-+ And more...
++ Integrate cutlass
++ End-to-end huggingface bert model support
++ Autotuning cutlass (If I have enough time)
 
 # Install
 
 ## Install MLIR
 
-Install it in your preferable way. This project should be compatible with the main branch of mlir.
+Install it in your preferable way. This project should be compatible with the main branch of mlir. Also, there is one under `thirdparty/llvm-project`, which is the one I'm currently working on. You can use that.  **Strongly recommend using clang and lld to get faster compile speed.**
 
 ## Install this project
 
-If you didn't enable address sanitizer when installing the mlir, please remove the following lines in CMakeLists.txt. (I'm to lazy to make it configurable)
-
-```
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
-```
-
-Then use the following command to compile.
+Use the following command to compile. **Strongly recommend using clang and lld to get faster compile speed.**
 
 ```
 $ cd Hands-on-MLIR
@@ -35,7 +24,8 @@ $ mkdir build && cd build
 $ cmake -G Ninja .. \
     -DMLIR_DIR=/your/path/to/llvm-project/build/lib/cmake/mlir \
     -DLLVM_DIR=/your/path/to/llvm-project/build/lib/cmake/llvm \
-    -DLLVM_ENABLE_ASSERTIONS=ON
+    -DLLVM_ENABLE_ASSERTIONS=ON \
+    -DLLVM_USE_LINKER=lld # Strongly recommended to save the memory and linking time, so that we can compile with more threads, and could be linked faster. (On my local machine, could save the linking time from ~55s to sub 10s)
 ```
 
 or you can use this setup in VSCode.
@@ -44,7 +34,9 @@ or you can use this setup in VSCode.
  "cmake.configureArgs": [
      "-DMLIR_DIR=/your/path/to/llvm-project/build/lib/cmake/mlir",
      "-DLLVM_DIR=/your/path/to/llvm-project/build/lib/cmake/llvm",
-     "-DLLVM_ENABLE_ASSERTIONS=ON"
+     "-DLLVM_ENABLE_ASSERTIONS=ON",
+     "-DLLVM_USE_LINKER=lld",
+     // "-DLLVM_USE_SANITIZER=Address;Undefined" add this option if you want to enable the sanitizer. Also, maybe you should add it to llvm as well.
  ],
 ```
 

@@ -41,9 +41,8 @@ Expected<void *> ExecutionEngine::lookupHandle(StringRef name) const {
     } else {
       return symbol;
     }
-  } else {
-    return makeStringError("Handle is invalid.");
   }
+  return makeStringError("Handle is invalid.");
 }
 
 Expected<ExecutionEngine::InvokeFn>
