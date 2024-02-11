@@ -1,6 +1,6 @@
 [submodule "thirdparty/llvm-project"]
 	path = thirdparty/llvm-project
 	url = https://github.com/llvm/llvm-project.git
-[submodule "thirdparty/mlir-hlo"]
-	path = thirdparty/mlir-hlo
-	url = https://github.com/tensorflow/mlir-hlo
+[submodule "thirdparty/cutlass"]
+	path = thirdparty/cutlass
+	url = https://github.com/NVIDIA/cutlass.git
