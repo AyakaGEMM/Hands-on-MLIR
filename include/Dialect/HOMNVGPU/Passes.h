@@ -1,5 +1,5 @@
-#ifndef HOM_HOMTRANSFORMS_PASSES_H
-#define HOM_HOMTRANSFORMS_PASSES_H
+#ifndef HOMNVGPU_TRANSFORMS_PASSES_H
+#define HOMNVGPU_TRANSFORMS_PASSES_H
 
 #include <memory>
 
@@ -10,15 +10,14 @@
 
 namespace mlir {
 namespace hands_on_mlir {
-namespace hom {
+namespace homnvgpu {
 
-#define GEN_PASS_DECL_HOMFUSIONPASS
-#define GEN_PASS_DECL_HOMSERIALIZEWEIGHTPASS
+#define GEN_PASS_DECL_HOMNVGPUFUSIONPASS
 #define GEN_PASS_REGISTRATION
-#include "HOM/Passes.h.inc"
+#include "HOMNVGPU/Passes.h.inc"
 
-} // namespace hom
+} // namespace homnvgpu
 } // namespace hands_on_mlir
 } // namespace mlir
 
-#endif // HOM_HOMTRANSFORMS_PASSES_H
+#endif // HOMNVGPU_TRANSFORMS_PASSES_H

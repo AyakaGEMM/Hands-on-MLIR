@@ -86,6 +86,8 @@ if(ENABLE_CUDA)
   include_directories(${HANDS_ON_MLIR_SOURCE_DIR}/thirdparty/cutlass/include)
   include_directories(
     ${HANDS_ON_MLIR_SOURCE_DIR}/thirdparty/cutlass/tools/library/include)
+  include_directories(
+    ${HANDS_ON_MLIR_SOURCE_DIR}/thirdparty/cutlass/tools/util/include)
   include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 endif()
 

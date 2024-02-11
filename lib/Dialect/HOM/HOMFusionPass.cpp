@@ -27,8 +27,10 @@ limitations under the License.
 #include "WeightsEngine/WeightsEngine.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Tosa/IR/TosaOps.h"
+#include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Location.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/Value.h"
@@ -36,7 +38,10 @@ limitations under the License.
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/APInt.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 
 #define PASS_NAME "hom-fusion"
@@ -205,6 +210,69 @@ static LogicalResult checkMHAQKVTransposePermImpl(PatternRewriter &rewriter,
   return failure();
 }
 
+static LogicalResult
+checkTransposeReshapeChangeableImpl(PatternRewriter &rewriter,
+                                    Operation *reshape_) {
+  auto reshape = dyn_cast<tosa::ReshapeOp>(reshape_);
+
+  auto oldShape = reshape.getInput1().getType().getShape();
+  auto newShape = reshape.getNewShape();
+
+  return success(newShape.size() == 3 && oldShape.size() == 2 &&
+                 newShape[1] == oldShape[0] && newShape[2] == oldShape[1]);
+}
+
+template <class T>
+static void createPerm(PatternRewriter &rewriter, const Location &loc,
+                       ElementsAttr permAttr, tosa::ConstOp &op) {
+  auto permValue = permAttr.getValues<APInt>();
+  llvm::SmallVector<T> newPermValue(permValue.size() + 1);
+  newPermValue[0] = 0;
+  for (size_t i = 0; i < permValue.size(); i++) {
+    newPermValue[i + 1] = permValue[i].getLimitedValue(64) + 1;
+  }
+  auto newPermAttr = DenseElementsAttr::get(
+      RankedTensorType::get(ArrayRef<int64_t>{3}, permAttr.getElementType()),
+      ArrayRef<T>(newPermValue));
+  op = rewriter.create<tosa::ConstOp>(loc, newPermAttr.getType(), newPermAttr);
+}
+
+static void changeTransposeReshapeImpl(PatternRewriter &rewriter,
+                                       Operation *transpose_, Operation *perm_,
+                                       Operation *reshape_) {
+
+  auto loc = transpose_->getLoc();
+  auto transpose = dyn_cast<tosa::TransposeOp>(transpose_);
+  auto perm = dyn_cast<tosa::ConstOp>(perm_);
+  auto reshape = dyn_cast<tosa::ReshapeOp>(reshape_);
+  // auto matmul = dyn_cast<hom::MatmulOp>(matmul_);
+
+  auto oldReshapeValue = reshape.getNewShape();
+  llvm::SmallVector<int64_t> newShapeValue(oldReshapeValue.size());
+  newShapeValue[0] = oldReshapeValue[0];
+  newShapeValue[1] = oldReshapeValue[2];
+  newShapeValue[2] = oldReshapeValue[1];
+  auto newShapeAttr = rewriter.getAttr<DenseI64ArrayAttr>(newShapeValue);
+
+  // auto oldMatmulInput = matmul.getOperand1();
+  auto permValue = perm.getValue().getValues<APInt>();
+  tosa::ConstOp newPerm;
+  if (perm.getValue().getElementType().isInteger(64)) {
+    createPerm<int64_t>(rewriter, loc, perm.getValue(), newPerm);
+  } else if (perm.getValue().getElementType().isInteger(32)) {
+    createPerm<int32_t>(rewriter, loc, perm.getValue(), newPerm);
+  } else {
+    llvm_unreachable("Not ok");
+  }
+
+  auto input = transpose.getInput1();
+  auto newReshape = rewriter.create<tosa::ReshapeOp>(loc, input, newShapeAttr);
+  auto newTranspose = rewriter.create<tosa::TransposeOp>(
+      loc, reshape.getResult().getType(), newReshape.getResult(), newPerm);
+
+  rewriter.replaceOp(reshape, newTranspose);
+}
+
 // std::tuple<hom::MatmulOp, hom::BertMhaOp>
 static Operation *buildMHAOpImpl(PatternRewriter &rewriter, Operation *reshape_,
                                  Operation *scale_, Value mask, Operation *q_,
@@ -243,6 +311,10 @@ LogicalResult HOMFusionPass::initialize(MLIRContext *ctx) {
       "checkMHAQKVReshape", checkMHAQKVReshapeImpl);
   patternList.getPDLPatterns().registerConstraintFunction(
       "checkMHAQKVTransposePerm", checkMHAQKVTransposePermImpl);
+  patternList.getPDLPatterns().registerConstraintFunction(
+      "checkTransposeReshapeChangeable", checkTransposeReshapeChangeableImpl);
+  patternList.getPDLPatterns().registerRewriteFunction(
+      "changeTransposeReshape", changeTransposeReshapeImpl);
   patternList.getPDLPatterns().registerRewriteFunction("buildMHAOp",
                                                        buildMHAOpImpl);
   patterns = std::move(patternList);

@@ -36,3 +36,6 @@ build/*
 .vscode/*
 optimized.mlir
 .cache/*
+
+# Memo
+memo.md
