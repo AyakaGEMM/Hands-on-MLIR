@@ -66,7 +66,7 @@ public:
     }
     PackedArguments() = delete;
     size_t argNum;
-    std::shared_ptr<T> data;
+    std::shared_ptr<T[]> data;
   };
 
   /// Helper function to wrap an output operand when using

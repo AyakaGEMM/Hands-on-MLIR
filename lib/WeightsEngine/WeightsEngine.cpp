@@ -82,7 +82,7 @@ size_t WeightsEngine::addWeight(ElementsAttr &element) {
     // To-do: Make it configurable
     serializeWeightToDisk<float>(
         element, std::filesystem::path(__FILE__).parent_path().string() +
-                     std::string("/../../examples/linear/") +
+                     std::string("/../../examples/torch/linear/") +
                      std::to_string(idx) + ".txt");
     sPtr.reset(static_cast<float *>(dataPtr), free);
   } else if (elementType.isF16()) {

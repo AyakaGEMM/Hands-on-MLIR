@@ -1,9 +1,3 @@
-import sys
-
-sys.path.append(
-    "/Users/pzzzzz/MyProjects/torch-mlir/build/tools/torch-mlir/python_packages/torch_mlir"
-)
-
 import torch
 import torch_mlir
 
@@ -22,6 +16,8 @@ class A(torch.nn.Module):
 a = A()
 
 x = torch.ones(1, 3, 100)
+
+print(a(x))
 
 module = torch_mlir.compile(a, x, output_type="tosa")
 with open("linear.mlir", "w") as fl:

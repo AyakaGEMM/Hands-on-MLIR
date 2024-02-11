@@ -204,7 +204,8 @@ extern "C" CUnrankedMemRefType allocConstantF32(int32_t idx) {
   auto haha = CUnrankedMemRefType();
   // So stupid...
   ifstream file(filesystem::path(__FILE__).parent_path().string() +
-                string("/../../examples/linear/") + to_string(idx) + ".txt");
+                string("/../../examples/torch/linear/") + to_string(idx) +
+                ".txt");
   vector<int> v;
   int a;
   string line;
@@ -239,6 +240,8 @@ extern "C" void matmulAddF32(int64_t rankA, void *dstA, int64_t rankB,
   auto B = convertToDynamicMemRefType(rankB, dstB);
   auto C = convertToDynamicMemRefType(rankC, dstC);
   auto D = convertToDynamicMemRefType(rankD, dstD);
+
+  std::cout << rankB << std::endl;
 
   assert(rankA == 3);
   assert(rankB == 3);

@@ -39,6 +39,7 @@ target_compile_definitions(hands_on_mlir_runner_utils
 if(ENABLE_CUDA)
   set(CUTLASS_C_API_SOURCE ExecutionEngine/CutlassCAPI.cu)
   add_library(cutlass_c_api SHARED ${CUTLASS_C_API_SOURCE})
+  add_subdirectory(Kernels)
 endif()
 
 # get_target_property(target_compile_options hands_on_mlir_runner_utils

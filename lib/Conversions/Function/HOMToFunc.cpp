@@ -130,8 +130,8 @@ struct ConvertHOMMatmulOp : public OpConversionPattern<MatmulAddOp> {
 
     auto funcOp = lookupOrCreateMatmulAddF32Fn(moduleOp);
 
-    SmallVector<Value> operands = {op.getOperand0(), op.getOperand1(),
-                                   op.getOperand2(), allocCaller->getResult(0)};
+    SmallVector<Value> operands = {op.getOperand(0), op.getOperand(1),
+                                   op.getOperand(2), allocCaller->getResult(0)};
     rewriter.create<func::CallOp>(op.getLoc(), funcOp, operands);
 
     while (!op->getUses().empty()) {

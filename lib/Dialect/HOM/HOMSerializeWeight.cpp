@@ -56,7 +56,7 @@ struct SerializeTosaConstOp : public OpRewritePattern<tosa::ConstOp> {
     auto constantOP = rewriter.create<ConstantOp>(loc, value.getType(), idx);
 
     while (!op->getUses().empty()) {
-      op->getUses().begin()->set(constantOP->getResult(0));
+      op->getUses().begin()->set(constantOP.getResult());
     }
 
     rewriter.eraseOp(op);

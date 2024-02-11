@@ -44,12 +44,9 @@ def HOM_ConstantOp : HOM_Op<"constant", [ConstantLike]> {
     ```
   }];
 
-  let arguments = (ins
-                       // StrAttr:$file,
-                       I64Attr
-                   : $idx);
+  let arguments = (ins I64Attr : $idx);
 
-  let results = (outs HOM_Tensor : $output);
+  let results = (outs HOM_RankedTensor : $output);
 
   let hasFolder = 1;
 }

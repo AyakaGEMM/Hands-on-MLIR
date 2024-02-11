@@ -22,12 +22,24 @@ def HOMNVGPU_Dialect : Dialect {
 }
 
 class HOMNVGPU_Op<string mnemonic, list<Trait> traits = []>
-    : Op<HOMNVGPU_Dialect, mnemonic, !listconcat(traits, [Pure])>;
+    : Op<HOMNVGPU_Dialect, mnemonic, !listconcat(traits, [])>;
 
 def HOMNVGPU_PrintOp : HOMNVGPU_Op<"print", []> {
   let arguments = (ins F64Tensor : $input);
 
   let assemblyFormat = "$input attr-dict `:` type($input)";
+}
+
+def HOMNVGPU_MatmulOp : HOMNVGPU_Op<"matmul", []> {
+  let arguments = (ins HOM_RankedTensor
+                   : $operand0, HOM_RankedTensor
+                   : $operand1, HOM_Tensor
+                   : $operand2, F32Attr
+                   : $alpha, F32Attr
+                   : $beta, I32Attr
+                   : $act);
+
+  let results = (outs HOM_RankedTensor : $output);
 }
 
 #endif // HOM_HOMNVGPUDIALECT_TD
