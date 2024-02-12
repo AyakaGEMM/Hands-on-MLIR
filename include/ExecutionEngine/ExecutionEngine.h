@@ -81,8 +81,8 @@ public:
     }
   };
 
-  template <> struct Argument<CUnrankedMemRefType> {
-    static void pack(SmallVectorImpl<void *> &args, CUnrankedMemRefType &val) {
+  template <> struct Argument<C_UnrankedMemRefType> {
+    static void pack(SmallVectorImpl<void *> &args, C_UnrankedMemRefType &val) {
       args.emplace_back(&val.rank);
       args.emplace_back(&val.descriptor);
     }
@@ -130,7 +130,7 @@ public:
     llvm::SmallVector<void *> argsArray;
     // Pack every arguments in an array of pointers. Delegate the packing to a
     // trait so that it can be overridden per argument type.
-    Argument<PackedArguments<CUnrankedMemRefType>>::pack(
+    Argument<PackedArguments<C_UnrankedMemRefType>>::pack(
         argsArray, argMap.at(funcName.str()));
     (Argument<Args>::pack(argsArray, args), ...);
     return invokePacked(funcName, argsArray);
@@ -139,12 +139,12 @@ public:
 private:
   void *handle;
 
-  std::unordered_map<std::string, PackedArguments<CUnrankedMemRefType>> argMap;
+  std::unordered_map<std::string, PackedArguments<C_UnrankedMemRefType>> argMap;
 
   llvm::Error invokePacked(StringRef funcName,
                            MutableArrayRef<void *> argsArray);
 
-  llvm::Expected<PackedArguments<CUnrankedMemRefType>>
+  llvm::Expected<PackedArguments<C_UnrankedMemRefType>>
   invokeInit(StringRef adapteName);
 
   template <typename... Args>

@@ -6,14 +6,14 @@
 #include <iostream>
 
 struct Res {
-  CUnrankedMemRefType a;
+  C_UnrankedMemRefType a;
 };
 
 #define RowMajor(A, i, j, k)                                                   \
   ((A).data[(i) * (A).strides[0] + (j) * (A).strides[1] + (k) * (A).strides[2]])
 
 int main() {
-  CUnrankedMemRefType a;
+  C_UnrankedMemRefType a;
 
   a.rank = 3;
 

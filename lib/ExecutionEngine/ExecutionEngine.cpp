@@ -82,7 +82,7 @@ Error ExecutionEngine::invokePacked(StringRef name,
   return Error::success();
 }
 
-Expected<ExecutionEngine::PackedArguments<CUnrankedMemRefType>>
+Expected<ExecutionEngine::PackedArguments<C_UnrankedMemRefType>>
 ExecutionEngine::invokeInit(StringRef name) {
   SmallVector<char> concatName;
 
@@ -96,7 +96,7 @@ ExecutionEngine::invokeInit(StringRef name) {
 
   concatName.clear();
 
-  PackedArguments<CUnrankedMemRefType> packedArgs(argNum);
+  PackedArguments<C_UnrankedMemRefType> packedArgs(argNum);
 
   auto packedMemRefRes = invokeInternal(
       (name + hom::kInit).toStringRef(concatName), result(packedArgs));

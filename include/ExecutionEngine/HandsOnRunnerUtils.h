@@ -21,7 +21,7 @@
 #include "mlir/ExecutionEngine/RunnerUtils.h"
 #include <stddef.h>
 
-struct CUnrankedMemRefType : UnrankedMemRefType<float> {};
+struct C_UnrankedMemRefType : UnrankedMemRefType<float> {};
 
 extern "C" HANDS_ON_MLIR_RUNNERUTILS_EXPORT void print2DMatrixF32(int64_t rank,
                                                                   void *dst);
@@ -36,13 +36,13 @@ validateF32WithRefMatmul(int64_t, void *, int64_t, void *, int64_t, void *,
 extern "C" HANDS_ON_MLIR_RUNNERUTILS_EXPORT void deallocF32(int64_t rank,
                                                             void *dst);
 
-extern "C" HANDS_ON_MLIR_RUNNERUTILS_EXPORT CUnrankedMemRefType
+extern "C" HANDS_ON_MLIR_RUNNERUTILS_EXPORT C_UnrankedMemRefType
 allocF32(int32_t elementNum);
 extern "C" HANDS_ON_MLIR_RUNNERUTILS_EXPORT
-    CUnrankedMemRefType alloc3DMemRefF32(int32_t, int32_t, int32_t);
-extern "C" HANDS_ON_MLIR_RUNNERUTILS_EXPORT CUnrankedMemRefType
+    C_UnrankedMemRefType alloc3DMemRefF32(int32_t, int32_t, int32_t);
+extern "C" HANDS_ON_MLIR_RUNNERUTILS_EXPORT C_UnrankedMemRefType
 allocByMemRefF32(int64_t rank, void *dst);
-extern "C" HANDS_ON_MLIR_RUNNERUTILS_EXPORT CUnrankedMemRefType
+extern "C" HANDS_ON_MLIR_RUNNERUTILS_EXPORT C_UnrankedMemRefType
 allocConstantF32(int32_t idx);
 
 extern "C" HANDS_ON_MLIR_RUNNERUTILS_EXPORT void matmulAddF32(int64_t, void *,

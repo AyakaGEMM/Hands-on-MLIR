@@ -131,8 +131,8 @@ extern "C" void deallocF32(int64_t rank, void *dst) {
 #define RowMajor(A, i, j, k)                                                   \
   ((A).data[(i) * (A).strides[0] + (j) * (A).strides[1] + (k) * (A).strides[2]])
 
-extern "C" CUnrankedMemRefType allocF32(int32_t elementNum) {
-  auto returnMemRef = CUnrankedMemRefType();
+extern "C" C_UnrankedMemRefType allocF32(int32_t elementNum) {
+  auto returnMemRef = C_UnrankedMemRefType();
   returnMemRef.rank = 1;
   returnMemRef.descriptor = malloc(sizeof(
       StridedMemRefType<float, 1>)); // MLIR will delete this ptr for us. Also,
@@ -148,9 +148,9 @@ extern "C" CUnrankedMemRefType allocF32(int32_t elementNum) {
   return returnMemRef;
 }
 
-extern "C" CUnrankedMemRefType alloc3DMemRefF32(int32_t a, int32_t b,
-                                                int32_t c) {
-  auto returnMemRef = CUnrankedMemRefType();
+extern "C" C_UnrankedMemRefType alloc3DMemRefF32(int32_t a, int32_t b,
+                                                 int32_t c) {
+  auto returnMemRef = C_UnrankedMemRefType();
   returnMemRef.rank = 3;
   returnMemRef.descriptor = malloc(sizeof(StridedMemRefType<float, 3>));
   auto des =
@@ -167,8 +167,8 @@ extern "C" CUnrankedMemRefType alloc3DMemRefF32(int32_t a, int32_t b,
   return returnMemRef;
 }
 
-extern "C" CUnrankedMemRefType allocByMemRefF32(int64_t rank, void *dst) {
-  auto returnMemRef = CUnrankedMemRefType();
+extern "C" C_UnrankedMemRefType allocByMemRefF32(int64_t rank, void *dst) {
+  auto returnMemRef = C_UnrankedMemRefType();
   returnMemRef.rank = rank;
   assert(rank <= 5 && rank > 0);
 
@@ -200,8 +200,8 @@ extern "C" CUnrankedMemRefType allocByMemRefF32(int64_t rank, void *dst) {
   return returnMemRef;
 }
 
-extern "C" CUnrankedMemRefType allocConstantF32(int32_t idx) {
-  auto haha = CUnrankedMemRefType();
+extern "C" C_UnrankedMemRefType allocConstantF32(int32_t idx) {
+  auto haha = C_UnrankedMemRefType();
   // So stupid...
   ifstream file(filesystem::path(__FILE__).parent_path().string() +
                 string("/../../examples/torch/linear/") + to_string(idx) +
