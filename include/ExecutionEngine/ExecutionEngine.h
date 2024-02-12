@@ -48,12 +48,11 @@ public:
 
   ~ExecutionEngine() {
     for (auto it : argMap) {
-      // This code could fix one memref leak. However, adding this could lead to
-      // double free which may crach the app. So comment out this code just as
-      // a remainder. The ideal solution would be a dedicated freer for all
-      // memref or I figure out who would be the module to free the memref.
-
-      // free(it.second.data.get()->descriptor);
+      for (size_t i = 0; i < it.second.argNum; i++) {
+        // Only free the descriptor here, the actual memory space should be
+        // managed by mlir c function.
+        free(it.second.data.get()[i].descriptor);
+      }
     }
   }
 
@@ -127,6 +126,10 @@ public:
   ///     int32_t result = 0;
   ///     llvm::Error error = jit->invoke("foo", 42,
   ///                                     result(result));
+  ///
+  /// The first call of this function will call the init function to create the
+  /// tensor managed by hands-on-mlir compiler. Currently we don't have explicit
+  /// init function for it. The second call would use the cached result.
   template <typename... Args>
   llvm::Error invoke(StringRef funcName, Args... args) {
     auto it = argMap.find(funcName.str());
@@ -150,6 +153,8 @@ public:
 private:
   void *handle;
 
+  // Map to store the extra tensor(e.g. weight tensor) managed by hands on mlir
+  // compiler.
   std::unordered_map<std::string, PackedArguments<C_UnrankedMemRefType>> argMap;
 
   llvm::Error invokePacked(StringRef funcName,
