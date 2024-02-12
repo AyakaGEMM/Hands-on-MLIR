@@ -1,7 +1,12 @@
 include "mlir/Pass/PassBase.td"
 
 def HOMToFuncPass : Pass<"hom-to-func", "mlir::func::FuncOp"> {
-  let summary = "Lowering Stablehlo to HOM";
+  let summary = "Lowering HOM to Func";
+  let dependentDialects = ["::mlir::func::FuncDialect"];
+}
+
+def HOMNVGPUToFuncPass : Pass<"homnvgpu-to-func", "mlir::func::FuncOp"> {
+  let summary = "Lowering HOMNVGPU to Func";
   let dependentDialects = ["::mlir::func::FuncDialect"];
 }
 

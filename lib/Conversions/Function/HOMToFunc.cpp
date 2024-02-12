@@ -51,7 +51,6 @@ limitations under the License.
 
 namespace mlir {
 namespace hands_on_mlir {
-namespace hom {
 
 #define GEN_PASS_DEF_HOMTOFUNCPASS
 #include "Conversions/Function/Passes.h.inc"
@@ -96,11 +95,11 @@ private:
   FrozenRewritePatternSet patterns;
 };
 
-struct ConvertHOMMatmulOp : public OpConversionPattern<MatmulAddOp> {
-  using OpConversionPattern<MatmulAddOp>::OpConversionPattern;
+struct ConvertHOMMatmulOp : public OpConversionPattern<hom::MatmulAddOp> {
+  using OpConversionPattern<hom::MatmulAddOp>::OpConversionPattern;
 
   LogicalResult
-  matchAndRewrite(MatmulAddOp op, OpAdaptor adaptor,
+  matchAndRewrite(hom::MatmulAddOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto loc = op->getLoc();
     auto moduleOp = op->getParentOfType<ModuleOp>();
@@ -145,11 +144,11 @@ struct ConvertHOMMatmulOp : public OpConversionPattern<MatmulAddOp> {
   }
 };
 
-struct ConvertHOMConstantOp : public OpConversionPattern<ConstantOp> {
-  using OpConversionPattern<ConstantOp>::OpConversionPattern;
+struct ConvertHOMConstantOp : public OpConversionPattern<hom::ConstantOp> {
+  using OpConversionPattern<hom::ConstantOp>::OpConversionPattern;
 
   LogicalResult
-  matchAndRewrite(ConstantOp op, OpAdaptor adaptor,
+  matchAndRewrite(hom::ConstantOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto loc = op->getLoc();
     auto moduleOp = op->getParentOfType<ModuleOp>();
@@ -222,6 +221,5 @@ void HOMToFuncPass::runOnOperation() {
 }
 
 } // namespace
-} // namespace hom
 } // namespace hands_on_mlir
 } // namespace mlir

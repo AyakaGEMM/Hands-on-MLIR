@@ -44,7 +44,7 @@ limitations under the License.
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 
-#define PASS_NAME "hom-nvgpu-fusion"
+#define PASS_NAME "homnvgpu-fusion"
 #define DEBUG_TYPE PASS_NAME
 
 namespace mlir {

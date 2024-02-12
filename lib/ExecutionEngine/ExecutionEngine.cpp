@@ -88,8 +88,8 @@ ExecutionEngine::invokeInit(StringRef name) {
 
   int32_t argNum;
 
-  auto argNumError = invokeInternal(
-      (name + hom::kArgNum).toStringRef(concatName), result(argNum));
+  auto argNumError =
+      invokeInternal((name + kArgNum).toStringRef(concatName), result(argNum));
   if (!argNumError) {
     llvm::handleAllErrors(std::move(argNumError));
   }
@@ -98,8 +98,8 @@ ExecutionEngine::invokeInit(StringRef name) {
 
   PackedArguments<C_UnrankedMemRefType> packedArgs(argNum);
 
-  auto packedMemRefRes = invokeInternal(
-      (name + hom::kInit).toStringRef(concatName), result(packedArgs));
+  auto packedMemRefRes = invokeInternal((name + kInit).toStringRef(concatName),
+                                        result(packedArgs));
 
   if (packedMemRefRes) {
     return packedMemRefRes;

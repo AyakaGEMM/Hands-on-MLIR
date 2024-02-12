@@ -8,25 +8,10 @@
 #include "HOM/Passes.h"
 #include "InitAllPasses.h"
 
-namespace mlir {
-namespace hands_on_mlir {
-void registerMatMulCPUOptimizePass();
-} // namespace hands_on_mlir
-} // namespace mlir
-
 int main(int argc, char **argv) {
   // Register all MLIR passes.
   mlir::registerAllPasses();
   mlir::hands_on_mlir::registerAllHOMPasses();
-
-  // Register Several Optimize Pass.
-  mlir::hands_on_mlir::registerMatMulCPUOptimizePass();
-  mlir::hands_on_mlir::hom::registerExtractInitFuncPass();
-  mlir::hands_on_mlir::hom::registerHOMFusionPass();
-  mlir::hands_on_mlir::hom::registerHOMSerializeWeightPass();
-  mlir::hands_on_mlir::hom::registerHOMToFuncPass();
-  mlir::hands_on_mlir::hom::registerTosaToHOMPass();
-  mlir::hands_on_mlir::hom::registerUnifyLLVMFuncInterfacePass();
 
   mlir::DialectRegistry registry;
   // Register all MLIR core dialects.

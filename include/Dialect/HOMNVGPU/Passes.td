@@ -15,7 +15,7 @@ limitations under the License.
 
 include "mlir/Pass/PassBase.td"
 
-def HOMNVGPUFusionPass : Pass<"hom-nvgpu-fusion", "mlir::func::FuncOp"> {
+def HOMNVGPUFusionPass : Pass<"homnvgpu-fusion", "mlir::func::FuncOp"> {
   let summary = "HOM Fusion Pass for NVIDIA GPU";
   let dependentDialects = [
     "::mlir::hands_on_mlir::hom::HOMDialect", "::mlir::tosa::TosaDialect",

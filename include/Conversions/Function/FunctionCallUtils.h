@@ -21,7 +21,6 @@
 
 namespace mlir {
 namespace hands_on_mlir {
-namespace hom {
 
 constexpr llvm::StringRef kAllocF32 = "allocF32";
 constexpr llvm::StringRef kAlloc3DMemRefF32 = "alloc3DMemRefF32";
@@ -47,7 +46,6 @@ func::FuncOp lookupOrCreateInitFn(ModuleOp moduleOp, StringRef prefix);
 func::FuncOp lookupOrCreateMatmulAddF32Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateMatmulF32Fn(ModuleOp moduleOp);
 
-} // namespace hom
 } // namespace hands_on_mlir
 } // namespace mlir
 

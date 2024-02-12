@@ -14,38 +14,50 @@ limitations under the License.
 ==============================================================================*/
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
-#include "Conversions/Stablehlo/Passes.h"
+#include "Conversions/Function/FunctionCallUtils.h"
+#include "Conversions/Function/Passes.h"
 #include "HOM/HOMOps.h"
 #include "WeightsEngine/WeightsEngine.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Func/Transforms/FuncConversions.h"
 #include "mlir/Dialect/Tosa/IR/TosaOps.h"
+#include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Location.h"
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/IR/ValueRange.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Support/LogicalResult.h"
+#include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include "stablehlo/dialect/StablehloOps.h"
 #include "llvm/ADT/APInt.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 
-#define PASS_NAME "stablehlo-to-hom"
+#include <iostream>
+
+#define PASS_NAME "homnvgpu-to-func"
 #define DEBUG_TYPE PASS_NAME
 
 namespace mlir {
 namespace hands_on_mlir {
-namespace hom {
 
-#define GEN_PASS_DEF_STABLEHLOTOHOMPASS
-#include "Conversions/Stablehlo/Passes.h.inc"
-#include "Conversions/Stablehlo/StablehloToHOM.pdll.h.inc"
+#define GEN_PASS_DEF_HOMNVGPUTOFUNCPASS
+#include "Conversions/Function/Passes.h.inc"
 
 namespace {
 
-struct StablehloToHOMPass : impl::StablehloToHOMPassBase<StablehloToHOMPass> {
+struct HOMNVGPUToFuncPass : impl::HOMNVGPUToFuncPassBase<HOMNVGPUToFuncPass> {
   void runOnOperation() final;
 
   LogicalResult initialize(MLIRContext *ctx) override;
@@ -54,42 +66,16 @@ private:
   FrozenRewritePatternSet patterns;
 };
 
-struct ConvertStablehloConstantOp
-    : public OpRewritePattern<stablehlo::ConstantOp> {
-  using OpRewritePattern<stablehlo::ConstantOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(stablehlo::ConstantOp op,
-                                PatternRewriter &rewriter) const override {
-    auto loc = op.getLoc();
-    auto value = op.getValueAttr();
-
-    size_t idx = 0;
-
-    auto constantOP = rewriter.create<ConstantOp>(loc, value.getType(), idx);
-
-    while (!op->getUses().empty()) {
-      op->getUses().begin()->set(constantOP->getResult(0));
-    }
-
-    rewriter.eraseOp(op);
-
-    return success();
-  }
-};
-
-LogicalResult StablehloToHOMPass::initialize(MLIRContext *ctx) {
+LogicalResult HOMNVGPUToFuncPass::initialize(MLIRContext *ctx) {
   RewritePatternSet patternList(ctx);
-  populateGeneratedPDLLPatterns(patternList);
-  patternList.add<ConvertStablehloConstantOp>(ctx);
   patterns = std::move(patternList);
   return success();
 }
 
-void StablehloToHOMPass::runOnOperation() {
+void HOMNVGPUToFuncPass::runOnOperation() {
   (void)applyPatternsAndFoldGreedily(getOperation(), patterns);
 }
 
 } // namespace
-} // namespace hom
 } // namespace hands_on_mlir
 } // namespace mlir

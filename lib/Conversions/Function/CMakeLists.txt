@@ -1,9 +1,8 @@
+file(GLOB sources_ *.cpp)
+
 add_mlir_library(
   HOMFuncTransforms
-  ExtractInitFunc.cpp
-  FunctionCallUtils.cpp
-  HOMToFunc.cpp
-  UnifyLLVMFuncInterface.cpp
+  ${sources_}
   DEPENDS
   HOMFuncTransformsPassIncGen
   LINK_LIBS

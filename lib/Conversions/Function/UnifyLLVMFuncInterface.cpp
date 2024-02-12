@@ -56,7 +56,6 @@ limitations under the License.
 
 namespace mlir {
 namespace hands_on_mlir {
-namespace hom {
 
 #define GEN_PASS_DEF_UNIFYLLVMFUNCINTERFACEPASS
 #include "Conversions/Function/Passes.h.inc"
@@ -161,6 +160,5 @@ void UnifyLLVMFuncInterfacePass::runOnOperation() {
 }
 
 } // namespace
-} // namespace hom
 } // namespace hands_on_mlir
 } // namespace mlir

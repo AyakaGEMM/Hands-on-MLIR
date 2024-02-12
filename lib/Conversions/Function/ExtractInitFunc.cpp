@@ -40,7 +40,6 @@
 
 namespace mlir {
 namespace hands_on_mlir {
-namespace hom {
 
 #define GEN_PASS_DEF_EXTRACTINITFUNCPASS
 #include "Conversions/Function/Passes.h.inc"
@@ -222,6 +221,5 @@ void ExtractInitFuncPass::runOnOperation() {
 }
 
 } // namespace
-} // namespace hom
 } // namespace hands_on_mlir
 } // namespace mlir

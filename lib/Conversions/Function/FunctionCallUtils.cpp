@@ -7,7 +7,6 @@
 
 namespace mlir {
 namespace hands_on_mlir {
-namespace hom {
 
 /// Generic print function lookupOrCreate helper.
 func::FuncOp lookupOrCreateFn(ModuleOp moduleOp, StringRef name,
@@ -91,6 +90,5 @@ func::FuncOp lookupOrCreateDeallocFn(ModuleOp moduleOp, StringRef prefix) {
                           {});
 }
 
-} // namespace hom
 } // namespace hands_on_mlir
 } // namespace mlir

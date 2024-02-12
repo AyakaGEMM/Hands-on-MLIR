@@ -8,15 +8,14 @@
 
 namespace mlir {
 namespace hands_on_mlir {
-namespace hom {
 
 #define GEN_PASS_DECL_EXTRACTINITFUNCPASS
 #define GEN_PASS_DECL_HOMTOFUNCPASS
+#define GEN_PASS_DECL_HOMNVGPUTOFUNCPASS
 #define GEN_PASS_DECL_UNIFYLLVMFUNCINTERFACEPASS
 #define GEN_PASS_REGISTRATION
 #include "Conversions/Function/Passes.h.inc"
 
-} // namespace hom
 } // namespace hands_on_mlir
 } // namespace mlir
 
