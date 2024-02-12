@@ -7,14 +7,14 @@ target_link_libraries(
   hands-on-opt
   PRIVATE ${dialect_libs}
           ${conversion_libs}
-          HOMFuncTransforms
-          HOMHOMNVGPUNVGPUTransforms
+          HOMToFuncTransforms
+          HOMToHOMNVGPUNVGPUTransforms
           MLIROptLib
           MLIRArithDialect
           MatMulCPUOptimization
           MLIRHOM
           MLIRHOMNVGPU
           WeightsEngine
-          TosaHOMTransforms)
+          TosaToHOMTransforms)
 
 mlir_check_all_link_libraries(hands-on-opt)

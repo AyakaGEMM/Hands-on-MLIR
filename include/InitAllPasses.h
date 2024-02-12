@@ -1,4 +1,5 @@
 #include "Conversions/Function/Passes.h"
+#include "Conversions/HOM/Passes.h"
 #include "Conversions/MatMulCPUOptimize/Passes.h"
 #include "Conversions/Tosa/Passes.h"
 #include "HOM/Passes.h"
@@ -10,6 +11,7 @@ inline void registerAllPasses() {
   registerMatMulCPUOptimizePass();
   registerExtractInitFuncPass();
   registerHOMToFuncPass();
+  registerHOMToHOMNVGPUPass();
   registerHOMNVGPUToFuncPass();
   registerUnifyLLVMFuncInterfacePass();
   hom::registerHOMFusionPass();

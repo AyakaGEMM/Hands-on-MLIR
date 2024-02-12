@@ -1,3 +1,3 @@
 set(LLVM_TARGET_DEFINITIONS Passes.td)
-mlir_tablegen(Passes.h.inc -gen-pass-decls -name HOMFuncTransforms)
-add_public_tablegen_target(HOMFuncTransformsPassIncGen)
+mlir_tablegen(Passes.h.inc -gen-pass-decls -name HOMToFuncTransforms)
+add_public_tablegen_target(HOMToFuncTransformsPassIncGen)

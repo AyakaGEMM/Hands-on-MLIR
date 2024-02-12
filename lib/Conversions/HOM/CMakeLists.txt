@@ -1,10 +1,11 @@
 file(GLOB sources_ *.cpp)
 
 add_mlir_library(
-  HOMHOMNVGPUNVGPUTransforms
+  HOMToHOMNVGPUNVGPUTransforms
   ${sources_}
   DEPENDS
-  HOMHOMNVGPUNVGPUTransformsPassIncGen
+  HOMToHOMNVGPUNVGPUTransformsPassIncGen
+  HOMToHOMNVGPUPDLLPatternsIncGen
   LINK_LIBS
   MLIRIR
   MLIRPass

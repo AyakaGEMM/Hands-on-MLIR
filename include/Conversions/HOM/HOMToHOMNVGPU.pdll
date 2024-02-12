@@ -1,0 +1,10 @@
+#include "HOM/HOMOps.td"
+#include "HOMNVGPU/HOMNVGPUOps.td"
+
+Pattern {
+  let root = op<hom.matmul_add>(input0 : Value, input1 : Value, input2 : Value);
+
+  replace root with op<homnvgpu.matmul>(input0, input1, input2){
+      alpha = attr<"1.0 : f32">, beta = attr<"1.0 : f32">,
+      act = attr<"0 : i32">};
+}

@@ -1,10 +1,10 @@
 file(GLOB sources_ *.cpp)
 
 add_mlir_library(
-  HOMFuncTransforms
+  HOMToFuncTransforms
   ${sources_}
   DEPENDS
-  HOMFuncTransformsPassIncGen
+  HOMToFuncTransformsPassIncGen
   LINK_LIBS
   PUBLIC
   MLIRIR

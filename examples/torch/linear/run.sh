@@ -6,4 +6,4 @@ clang++-18 linear.s -fPIC -shared -L../../../build/lib/ -lhands_on_mlir_executio
 
 clang++-18 run.cpp -fsanitize=address,undefined -I../../../include/ -I../../../thirdparty/llvm-project/mlir/include/ -I../../../thirdparty/llvm-project/llvm/include/ -I../../../thirdparty/llvm-project/build/include/ -L./ -L../../../build/lib/ -L../../../thirdparty/llvm-project/build/lib -lLLVM-18 -lhands_on_mlir_runner_utils -llinear -lhands_on_mlir_execution_engine -Wl,-rpath,../../../build/lib -Wl,-rpath,../../../thirdparty/llvm-project/build/lib -Wl,-rpath,./ -std=gnu++17 -o run
 
-./run
+LSAN_OPTIONS=suppressions=../../../lsan.supp UBSAN_OPTIONS=suppressions=../../../ubsan.supp ./run

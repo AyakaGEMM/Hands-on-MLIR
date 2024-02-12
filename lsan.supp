@@ -1,0 +1,5 @@
+# This is a known leak since we don't call deallocFn when exit the program.
+leak:HandsOnRunnerUtils.cpp
+
+# Have some ideas on this leak. Init function alloc memref object, and possibly copied by value in `ExectuionEngine`. However, no one free them. Need further investigation on this.
+leak:linear.s

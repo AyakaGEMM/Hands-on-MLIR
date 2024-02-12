@@ -1,9 +1,9 @@
 add_mlir_library(
-  TosaHOMTransforms
+  TosaToHOMTransforms
   TosaToHOM.cpp
   DEPENDS
-  TosaHOMTransformsPassIncGen
-  TosaHOMPDLLPatternsIncGen
+  TosaToHOMTransformsPassIncGen
+  TosaToHOMPDLLPatternsIncGen
   WeightsEngine
   LINK_COMPONENTS
   Core
