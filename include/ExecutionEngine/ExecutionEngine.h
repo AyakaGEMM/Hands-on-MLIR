@@ -46,6 +46,17 @@ public:
     }
   }
 
+  ~ExecutionEngine() {
+    for (auto it : argMap) {
+      // This code could fix one memref leak. However, adding this could lead to
+      // double free which may crach the app. So comment out this code just as
+      // a remainder. The ideal solution would be a dedicated freer for all
+      // memref or I figure out who would be the module to free the memref.
+
+      // free(it.second.data.get()->descriptor);
+    }
+  }
+
   /// Trait that defines how a given type is passed to the JIT code. This
   /// defaults to passing the address but can be specialized.
   template <typename T> struct Argument {
