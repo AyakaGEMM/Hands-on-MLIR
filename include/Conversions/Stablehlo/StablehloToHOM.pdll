@@ -1,6 +1,0 @@
-#include "HOM/HOMOps.td"
-#include "stablehlo/dialect/StablehloOps.td"
-
-// Pattern =>
-//   replace op<stablehlo.transpose>(input : Value<_: AnyTensor>)
-//      with op<hom.transpose>(input);

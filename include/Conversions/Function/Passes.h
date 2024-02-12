@@ -1,8 +1,6 @@
 #ifndef HOM_CONVERSIONS_FUNC_TRANSFORMS_PASSES_H
 #define HOM_CONVERSIONS_FUNC_TRANSFORMS_PASSES_H
 
-#include <memory>
-
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Pass/Pass.h"
 

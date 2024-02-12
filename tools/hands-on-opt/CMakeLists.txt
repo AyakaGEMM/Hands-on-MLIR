@@ -8,6 +8,7 @@ target_link_libraries(
   PRIVATE ${dialect_libs}
           ${conversion_libs}
           HOMFuncTransforms
+          HOMHOMNVGPUNVGPUTransforms
           MLIROptLib
           MLIRArithDialect
           MatMulCPUOptimization

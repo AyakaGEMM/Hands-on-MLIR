@@ -6,7 +6,7 @@
 
 namespace mlir {
 namespace hands_on_mlir {
-inline void registerAllHOMPasses() {
+inline void registerAllPasses() {
   registerMatMulCPUOptimizePass();
   registerExtractInitFuncPass();
   registerHOMToFuncPass();
