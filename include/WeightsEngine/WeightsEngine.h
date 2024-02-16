@@ -1,4 +1,8 @@
+#ifndef HANDS_ON_MLIR_WEIGHTSENGINE_WEIGHTSENGINE_H_
+#define HANDS_ON_MLIR_WEIGHTSENGINE_WEIGHTSENGINE_H_
+
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
+#include "mlir/IR/BuiltinTypeInterfaces.h"
 #include <cstddef>
 #include <memory>
 #include <unordered_map>
@@ -8,7 +12,6 @@ namespace hands_on_mlir {
 class WeightsEngine {
   size_t weightsIds;
   std::unordered_map<size_t, std::shared_ptr<void>> weightsMap;
-  template <class T, class T0> void castElementsToPtr(ElementsAttr &, T0 *);
 
 public:
   WeightsEngine() { weightsIds = 0; }
@@ -17,7 +20,7 @@ public:
   void removeWeight(size_t idx);
 
   template <class T>
-  static void serializeWeightToDisk(ElementsAttr &value,
+  static void serializeWeightToDisk(const ShapedType &shape, void *data,
                                     const std::string &fileName);
 };
 
@@ -25,3 +28,5 @@ extern WeightsEngine gWe;
 
 } // namespace hands_on_mlir
 } // namespace mlir
+
+#endif

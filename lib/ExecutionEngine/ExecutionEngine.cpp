@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include "ExecutionEngine/ExecutionEngine.h"
-#include "Conversions/Function/FunctionCallUtils.h"
+#include "Conversions/Function/FunctionUtils.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "llvm/Support/Error.h"

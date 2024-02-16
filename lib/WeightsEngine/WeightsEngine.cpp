@@ -1,4 +1,5 @@
 #include "WeightsEngine/WeightsEngine.h"
+#include "WeightsEngine/Utils.h"
 #include "half.hpp"
 #include "mlir/IR/BuiltinTypes.h"
 #include "llvm/ADT/APFloat.h"
@@ -16,48 +17,20 @@ using half_float::half;
 namespace mlir {
 namespace hands_on_mlir {
 
-template <class T> void printElement(const T &element, llvm::raw_ostream &out) {
-  element.print(out);
-}
-
-template <>
-void printElement<APInt>(const APInt &element, llvm::raw_ostream &out) {
-  element.print(out, true);
-}
-
-template <class T, class T0> T convertToT0(T0 data) {
-  llvm_unreachable("Unsupported Type");
-}
-
-template <> float convertToT0(APFloat data) { return data.convertToFloat(); }
-template <> half convertToT0(APFloat data) {
-  return half(data.convertToFloat());
-}
-
-template <class T> T convertToT0(APInt data) { return data.getLimitedValue(); }
-
-template <class T, class T0>
-void WeightsEngine::castElementsToPtr(ElementsAttr &element, T0 *ptr) {
-  auto data = element.getValues<T>();
-
-  for (int i = 0; i < element.getNumElements(); i++) {
-    ptr[i] = convertToT0<T0>(data[i]);
-  }
-}
-
 template <class T>
-void WeightsEngine::serializeWeightToDisk(ElementsAttr &value,
+void WeightsEngine::serializeWeightToDisk(const ShapedType &shape,
+                                          void *dataPtr,
                                           const std::string &fileName) {
-  auto shape = value.getShapedType();
-  auto data = value.getValues<T>();
   auto dimSize = shape.getShape();
   std::error_code EC;
   llvm::raw_fd_ostream out(fileName, EC);
+  // To-do: Change to a better store format.
   for (auto i : dimSize) {
     out << i << " ";
   }
   out << "\n";
-  auto totalSize = value.getNumElements();
+  auto totalSize = shape.getNumElements();
+  auto data = static_cast<T *>(dataPtr);
   for (int i = 0; i < totalSize; i++) {
     out << data[i] << " ";
   }
@@ -70,37 +43,40 @@ size_t WeightsEngine::addWeight(std::shared_ptr<void> weight) {
 }
 
 size_t WeightsEngine::addWeight(ElementsAttr &element) {
-  auto shapeType = element.getShapedType();
   auto elementType = element.getElementType();
 
-  void *dataPtr = malloc(shapeType.getElementTypeBitWidth() / 8 *
-                         shapeType.getNumElements());
+  void *dataPtr;
   std::shared_ptr<void> sPtr;
   auto idx = addWeight(sPtr);
   if (elementType.isF32()) {
-    castElementsToPtr<APFloat>(element, static_cast<float *>(dataPtr));
+    castElementsToPtr<APFloat, float>(element, &dataPtr);
     // To-do: Make it configurable
     serializeWeightToDisk<float>(
-        element, std::filesystem::path(__FILE__).parent_path().string() +
-                     std::string("/../../examples/torch/linear/") +
-                     std::to_string(idx) + ".txt");
+        element.getShapedType(), dataPtr,
+        std::filesystem::path(__FILE__).parent_path().string() +
+            std::string("/../../examples/torch/linear/") + std::to_string(idx) +
+            ".txt");
     sPtr.reset(static_cast<float *>(dataPtr), free);
   } else if (elementType.isF16()) {
-    castElementsToPtr<APFloat>(element, static_cast<half *>(dataPtr));
-    sPtr.reset(static_cast<float *>(dataPtr), free);
+    castElementsToPtr<APFloat, half_float::half>(element, &dataPtr);
+    sPtr.reset(static_cast<half_float::half *>(dataPtr), free);
   } else if (elementType.isIntOrIndex()) {
     auto intType = llvm::dyn_cast<IntegerType>(elementType);
     switch (intType.getWidth()) {
     case 64:
-      castElementsToPtr<APInt>(element, static_cast<size_t *>(dataPtr));
-      sPtr.reset(static_cast<size_t *>(dataPtr), free);
+      castElementsToPtr<APInt, int64_t>(element, &dataPtr);
+      sPtr.reset(static_cast<int64_t *>(dataPtr), free);
       break;
     case 32:
-      castElementsToPtr<APInt>(element, static_cast<int32_t *>(dataPtr));
+      castElementsToPtr<APInt, int32_t>(element, &dataPtr);
       sPtr.reset(static_cast<int32_t *>(dataPtr), free);
       break;
+    case 16:
+      castElementsToPtr<APInt, int16_t>(element, &dataPtr);
+      sPtr.reset(static_cast<int16_t *>(dataPtr), free);
+      break;
     case 8:
-      castElementsToPtr<APInt>(element, static_cast<int8_t *>(dataPtr));
+      castElementsToPtr<APInt, int8_t>(element, &dataPtr);
       sPtr.reset(static_cast<int8_t *>(dataPtr), free);
       break;
     default:

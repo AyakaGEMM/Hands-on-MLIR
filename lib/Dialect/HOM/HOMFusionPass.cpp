@@ -292,6 +292,83 @@ static Operation *buildMHAOpImpl(PatternRewriter &rewriter, Operation *reshape_,
       scale.getResult());
 }
 
+struct HOMReinterprateTosaShape : public OpRewritePattern<tosa::ReshapeOp> {
+  using OpRewritePattern<tosa::ReshapeOp>::OpRewritePattern;
+  LogicalResult matchAndRewrite(tosa::ReshapeOp op,
+                                PatternRewriter &rewriter) const override {
+
+    auto oldType = dyn_cast<RankedTensorType>(op.getInput1().getType());
+    if (oldType) {
+      auto oldShape = oldType.getShape();
+      auto newShape = op.getNewShape();
+      if (oldShape.size() == 3 && newShape.size() == 3 && newShape[0] == 1 &&
+          newShape[0] * newShape[1] == oldShape[0] * oldShape[1]) {
+        auto isAllUsersOk = true;
+        for (auto user : op->getUsers()) {
+          if (auto matmul = dyn_cast<hom::MatmulOp>(user)) {
+            if (matmul.getOperand0() == op.getOutput()) {
+              matmul->setOperand(0, op.getInput1());
+              auto res = matmul.getResult();
+              SmallVector<int64_t> s = {oldShape[0], oldShape[1],
+                                        res.getType().getShape()[2]};
+              auto newType =
+                  RankedTensorType::get(s, res.getType().getElementType());
+              res.setType(newType);
+            } else {
+              isAllUsersOk = false;
+            }
+          } else {
+            isAllUsersOk = false;
+          }
+        }
+        if (isAllUsersOk) {
+          rewriter.eraseOp(op);
+          return success();
+        } else {
+          return failure();
+        }
+      }
+    }
+
+    return failure();
+  }
+};
+
+struct HOMLegalizeMatmulShape : public OpRewritePattern<hom::MatmulOp> {
+  using OpRewritePattern<hom::MatmulOp>::OpRewritePattern;
+  LogicalResult matchAndRewrite(hom::MatmulOp op,
+                                PatternRewriter &rewriter) const override {
+
+    auto operand0 = op.getOperand0();
+    auto operand1 = op.getOperand1();
+    auto result = op.getResult();
+
+    auto shape0 = operand0.getType().getShape();
+    auto shape1 = operand1.getType().getShape();
+    auto shape2 = result.getType().getShape();
+
+    assert(shape0.size() == shape1.size() && shape0.size() == shape2.size());
+
+    if (shape0.size() == 3) {
+      SmallVector<int64_t> expectedResultShape = {
+          std::max(shape0[0], shape1[0]), shape0[1], shape1[2]};
+      auto total = expectedResultShape[0] * expectedResultShape[1] *
+                   expectedResultShape[2];
+      assert(total == result.getType().getNumElements());
+      for (int i = 0; i < 3; i++) {
+        if (shape2[i] != expectedResultShape[i]) {
+          auto ty = RankedTensorType::get(expectedResultShape,
+                                          result.getType().getElementType());
+          rewriter.modifyOpInPlace(op, [&]() { op.getResult().setType(ty); });
+          return success();
+        }
+      }
+    }
+
+    return failure();
+  }
+};
+
 struct HOMFusionPass : impl::HOMFusionPassBase<HOMFusionPass> {
   void runOnOperation() final;
 
@@ -305,6 +382,7 @@ LogicalResult HOMFusionPass::initialize(MLIRContext *ctx) {
   RewritePatternSet patternList(ctx);
 
   populateGeneratedPDLLPatterns(patternList);
+  patternList.add<HOMReinterprateTosaShape, HOMLegalizeMatmulShape>(ctx);
   patternList.getPDLPatterns().registerConstraintFunction(
       "checkReshapeRemovable", checkReshapeRemovableImpl);
   patternList.getPDLPatterns().registerConstraintFunction(

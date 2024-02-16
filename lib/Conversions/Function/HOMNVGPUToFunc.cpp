@@ -20,9 +20,10 @@ limitations under the License.
 #include <string>
 #include <utility>
 
-#include "Conversions/Function/FunctionCallUtils.h"
+#include "Conversions/Function/FunctionUtils.h"
 #include "Conversions/Function/Passes.h"
 #include "HOM/HOMOps.h"
+#include "HOMNVGPU/HOMNVGPUOps.h"
 #include "WeightsEngine/WeightsEngine.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
@@ -66,6 +67,111 @@ private:
   FrozenRewritePatternSet patterns;
 };
 
+struct ConvertHOMNVGPUMatmulOp
+    : public OpConversionPattern<homnvgpu::MatmulOp> {
+  using OpConversionPattern<homnvgpu::MatmulOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(homnvgpu::MatmulOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto loc = op->getLoc();
+    auto moduleOp = op->getParentOfType<ModuleOp>();
+
+    auto returnType = op.getOutput().getType();
+
+    auto canReuseC = [&]() {
+      auto cProducer =
+          dyn_cast<hom::DummyTensorOp>(op.getOperand(2).getDefiningOp());
+
+      if (cProducer) {
+        return false;
+      }
+
+      return false;
+    };
+
+    if (canReuseC()) {
+      llvm_unreachable("Not implemented.");
+    } else {
+      func::FuncOp allocFn;
+
+      if (returnType.getElementType().isF32()) {
+        allocFn = lookupOrCreateAlloc3DMemRefNVGPUF32Fn(moduleOp);
+      } else {
+        llvm_unreachable("Not good.");
+      }
+
+      // Stupid Static Shape Inference Here. Should convert to dynamic shape if
+      // I have time.
+      auto A = rewriter.create<arith::ConstantIntOp>(
+          loc, returnType.getShape()[0], 32);
+      auto B = rewriter.create<arith::ConstantIntOp>(
+          loc, returnType.getShape()[1], 32);
+      auto C = rewriter.create<arith::ConstantIntOp>(
+          loc, returnType.getShape()[2], 32);
+
+      SmallVector<Value> allocOperands = {A.getResult(), B.getResult(),
+                                          C.getResult()};
+      auto allocCaller =
+          rewriter.create<func::CallOp>(loc, allocFn, allocOperands);
+
+      auto funcOp = lookupOrCreateGemmNVGPUF32Fn(moduleOp);
+
+      auto alpha = rewriter.create<arith::ConstantFloatOp>(
+          loc, op.getAlpha(), rewriter.getF32Type());
+      auto beta = rewriter.create<arith::ConstantFloatOp>(
+          loc, op.getBeta(), rewriter.getF32Type());
+
+      Value c = op->getOperand(2);
+
+      if (op.getBeta().convertToFloat() == 0) {
+        c = allocCaller.getResult(0);
+      }
+
+      SmallVector<Value> operands = {
+          op.getOperand(0),         op.getOperand(1),  c,
+          allocCaller.getResult(0), alpha.getResult(), beta.getResult()};
+      rewriter.create<func::CallOp>(op.getLoc(), funcOp, operands);
+      while (!op->getUses().empty()) {
+        op->getUses().begin()->set(allocCaller->getResult(0));
+      }
+    }
+
+    // maybeInsertDeallocFn(rewriter, op, {allocCaller->getResult(0)});
+    rewriter.eraseOp(op);
+
+    return success();
+  }
+};
+
+struct ConvertHOMConstantOp : public OpConversionPattern<hom::ConstantOp> {
+  using OpConversionPattern<hom::ConstantOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(hom::ConstantOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto loc = op->getLoc();
+    auto moduleOp = op->getParentOfType<ModuleOp>();
+
+    auto allocFn = lookupOrCreateAllocConstantNVGPUF32Fn(moduleOp);
+
+    auto idx = rewriter.create<arith::ConstantIntOp>(
+        loc, op.getIdxAttr().getInt(), 32);
+
+    SmallVector<Value> operands = {idx->getResult(0)};
+    auto allocCaller = rewriter.create<func::CallOp>(loc, allocFn, operands);
+
+    while (!op.use_empty()) {
+      op->getUses().begin()->set(allocCaller->getResult(0));
+    }
+
+    // maybeInsertDeallocFn(rewriter, op, {allocCaller->getResult(0)});
+    rewriter.eraseOp(op);
+
+    return success();
+  }
+};
+
 LogicalResult HOMNVGPUToFuncPass::initialize(MLIRContext *ctx) {
   RewritePatternSet patternList(ctx);
   patterns = std::move(patternList);
@@ -74,6 +180,36 @@ LogicalResult HOMNVGPUToFuncPass::initialize(MLIRContext *ctx) {
 
 void HOMNVGPUToFuncPass::runOnOperation() {
   (void)applyPatternsAndFoldGreedily(getOperation(), patterns);
+
+  auto *context = &getContext();
+  RewritePatternSet convPatterns(context);
+  ConversionTarget target(*context);
+
+  HOMFuncTypeConverter typeConverter;
+
+  populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(convPatterns,
+                                                                 typeConverter);
+  populateCallOpTypeConversionPattern(convPatterns, typeConverter);
+  populateReturnOpTypeConversionPattern(convPatterns, typeConverter);
+
+  target.addDynamicallyLegalOp<func::CallOp>(
+      [&](func::CallOp op) { return typeConverter.isLegal(op); });
+
+  target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
+    return typeConverter.isSignatureLegal(op.getFunctionType()) &&
+           typeConverter.isLegal(&op.getBody());
+  });
+
+  convPatterns.add<ConvertHOMNVGPUMatmulOp, ConvertHOMConstantOp,
+                   ConvertHOMDummyTensorOp>(typeConverter, context);
+
+  target.addLegalDialect<func::FuncDialect, arith::ArithDialect>();
+  target.addIllegalDialect<hom::HOMDialect, homnvgpu::HOMNVGPUDialect>();
+
+  if (failed(applyFullConversion(getOperation(), target,
+                                 std::move(convPatterns)))) {
+    signalPassFailure();
+  }
 }
 
 } // namespace

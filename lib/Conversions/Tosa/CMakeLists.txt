@@ -1,6 +1,8 @@
+file(GLOB sources_ *.cpp)
+
 add_mlir_library(
   TosaToHOMTransforms
-  TosaToHOM.cpp
+  ${sources_}
   DEPENDS
   TosaToHOMTransformsPassIncGen
   TosaToHOMPDLLPatternsIncGen

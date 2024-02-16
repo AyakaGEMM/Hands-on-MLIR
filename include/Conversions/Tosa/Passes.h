@@ -21,17 +21,33 @@ limitations under the License.
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/PDL/IR/PDL.h"
 #include "mlir/Dialect/PDLInterp/IR/PDLInterp.h"
+#include "mlir/Dialect/Tosa/IR/TosaOps.h"
+#include "mlir/Dialect/Tosa/Transforms/Passes.h"
 #include "mlir/Pass/Pass.h"
+#include "mlir/Pass/PassManager.h"
 
 namespace mlir {
 namespace hands_on_mlir {
 namespace hom {
 
 #define GEN_PASS_DECL_TOSATOHOMPASS
+#define GEN_PASS_DECL_TOSACONSTANTFOLDINGPASS
 #define GEN_PASS_REGISTRATION
 #include "Conversions/Tosa/Passes.h.inc"
 
-void registerTosaToHOMPipelines();
+inline void registerTosaToHOMPipelines() {
+  PassPipelineRegistration<>(
+      "tosa-to-hom-pipeline",
+      "Convert TOSA operators to hom with some optimization",
+      [](OpPassManager &pm) {
+        tosa::TosaLayerwiseConstantFoldPassOptions tosaConstFoldOption;
+        tosaConstFoldOption.aggressiveReduceConstant = true;
+        pm.addPass(
+            tosa::createTosaLayerwiseConstantFoldPass(tosaConstFoldOption));
+        pm.addPass(createTosaConstantFoldingPass());
+        pm.addPass(createTosaToHOMPass());
+      });
+}
 
 } // namespace hom
 } // namespace hands_on_mlir

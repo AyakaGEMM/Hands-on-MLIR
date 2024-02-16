@@ -20,9 +20,10 @@ limitations under the License.
 #include <string>
 #include <utility>
 
-#include "Conversions/Function/FunctionCallUtils.h"
+#include "Conversions/Function/FunctionUtils.h"
 #include "Conversions/Function/Passes.h"
 #include "HOM/HOMOps.h"
+#include "HOMNVGPU/HOMNVGPUOps.h"
 #include "WeightsEngine/WeightsEngine.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
@@ -185,15 +186,7 @@ void HOMToFuncPass::runOnOperation() {
   RewritePatternSet convPatterns(context);
   ConversionTarget target(*context);
 
-  // To-do: Wrap it to a custom TypeConverter constructor.
-  TypeConverter typeConverter;
-  typeConverter.addConversion([](Type type) { return type; });
-  typeConverter.addConversion([](RankedTensorType type) {
-    return UnrankedMemRefType::get(type.getElementType(), 0);
-  });
-  typeConverter.addConversion([](UnrankedTensorType type) -> Type {
-    return UnrankedMemRefType::get(type.getElementType(), 0);
-  });
+  HOMFuncTypeConverter typeConverter;
 
   populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(convPatterns,
                                                                  typeConverter);
@@ -208,8 +201,9 @@ void HOMToFuncPass::runOnOperation() {
            typeConverter.isLegal(&op.getBody());
   });
 
-  convPatterns.add<ConvertHOMMatmulOp>(typeConverter, context);
-  convPatterns.add<ConvertHOMConstantOp>(typeConverter, context);
+  convPatterns
+      .add<ConvertHOMMatmulOp, ConvertHOMDummyTensorOp, ConvertHOMConstantOp>(
+          typeConverter, context);
 
   target.addLegalDialect<func::FuncDialect, arith::ArithDialect>();
   target.addIllegalDialect<hom::HOMDialect>();

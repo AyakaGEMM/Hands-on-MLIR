@@ -6,7 +6,7 @@
 #include <string>
 #include <utility>
 
-#include "Conversions/Function/FunctionCallUtils.h"
+#include "Conversions/Function/FunctionUtils.h"
 #include "Conversions/Function/Passes.h"
 #include "HOM/HOMOps.h"
 #include "WeightsEngine/WeightsEngine.h"
@@ -21,6 +21,7 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Parser/Parser.h"
@@ -78,11 +79,12 @@ struct ExtractPattern : public OpRewritePattern<func::FuncOp> {
         deallocFnbuilder(deallocFn.getFunctionBody());
 
     SmallVector<Operation *> dealloc2remove, alloc2remove;
-    SmallVector<Type> initAllocTypes;
+    SmallVector<std::pair<Type, int32_t>> initAllocTypes;
     SmallVector<Value> initAllocValues;
 
     op->walk([&](func::CallOp callOp) {
-      if (callOp.getCallee().equals("allocConstantF32")) {
+      if (callOp.getCallee().equals(kAllocConstantF32) ||
+          callOp.getCallee().equals(kAllocConstantNVGPUF32)) {
         alloc2remove.emplace_back(callOp);
         auto idxOp = dyn_cast<arith::ConstantIntOp>(
             callOp->getOperand(0).getDefiningOp());
@@ -102,8 +104,11 @@ struct ExtractPattern : public OpRewritePattern<func::FuncOp> {
             initFn.getLoc(), callOp.getCallee(), callOp->getResultTypes(),
             ValueRange{initIdxOp.getResult()});
         initAllocValues.emplace_back(initCallOp->getResult(0));
-        initAllocTypes.emplace_back(initCallOp->getResult(0).getType());
-      } else if (callOp.getCallee().equals("alloc3DMemRefF32")) {
+        initAllocTypes.emplace_back(
+            std::make_pair(initCallOp->getResult(0).getType(),
+                           callOp.getCallee().contains("NVGPU")));
+      } else if (callOp.getCallee().equals(kAlloc3DMemRefF32) ||
+                 callOp.getCallee().equals(kAlloc3DMemRefNVGPUF32)) {
         alloc2remove.emplace_back(callOp);
 
         SmallVector<Value> operands;
@@ -122,7 +127,9 @@ struct ExtractPattern : public OpRewritePattern<func::FuncOp> {
             initFn.getLoc(), callOp.getCallee(), callOp->getResultTypes(),
             operands);
         initAllocValues.emplace_back(initCallOp->getResult(0));
-        initAllocTypes.emplace_back(initCallOp->getResult(0).getType());
+        initAllocTypes.emplace_back(
+            std::make_pair(initCallOp->getResult(0).getType(),
+                           callOp.getCallee().contains("NVGPU")));
 
         for (auto user : callOp->getUsers()) {
           if (auto dealloc = dyn_cast<func::CallOp>(user)) {
@@ -131,12 +138,16 @@ struct ExtractPattern : public OpRewritePattern<func::FuncOp> {
             }
           }
         }
+      } else if (callOp.getCallee().equals(kAllocDummyTensorF32)) {
+        if (callOp->getUsers().empty()) {
+          rewriter.eraseOp(callOp);
+        } else {
+          llvm_unreachable("Dummy tensor should not be used in anyway.");
+        }
       }
     });
 
     initFnBuilder.create<func::ReturnOp>(initFn->getLoc(), initAllocValues);
-    auto initFnTy = FunctionType::get(ctx, {}, initAllocTypes);
-    initFn.setFunctionType(initFnTy);
 
     int idx = 0;
     /// offset = op.getNumArguments();
@@ -144,25 +155,32 @@ struct ExtractPattern : public OpRewritePattern<func::FuncOp> {
     SmallVector<unsigned int> argIndices;
     SmallVector<Location> argLoc;
     SmallVector<DictionaryAttr> argAttr;
+    SmallVector<Type> argType;
     for (size_t i = 0; i < initAllocTypes.size(); i++) {
       argIndices.emplace_back(0);
       argLoc.emplace_back(unknownLoc);
       argAttr.emplace_back(DictionaryAttr::get(ctx));
+      argType.emplace_back(initAllocTypes[i].first);
     }
 
+    auto initFnTy = FunctionType::get(ctx, {}, argType);
+    initFn.setFunctionType(initFnTy);
+
     rewriter.modifyOpInPlace(op, [&]() {
-      op.insertArguments(argIndices, initAllocTypes, argAttr, argLoc);
+      op.insertArguments(argIndices, argType, argAttr, argLoc);
     });
 
-    deallocFn.insertArguments(argIndices, initAllocTypes, argAttr, argLoc);
+    deallocFn.insertArguments(argIndices, argType, argAttr, argLoc);
 
     for (auto type : initAllocTypes) {
-      auto memrefTy = dyn_cast<UnrankedMemRefType>(type);
+      auto memrefTy = dyn_cast<UnrankedMemRefType>(type.first);
       if (!memrefTy) {
         llvm_unreachable("Not Good.");
       }
       if (memrefTy.getElementType().isF32()) {
-        auto internalDeallocFn = lookupOrCreateDeallocF32Fn(moduleOp);
+        auto internalDeallocFn = type.second
+                                     ? lookupOrCreateDeallocNVGPUF32Fn(moduleOp)
+                                     : lookupOrCreateDeallocF32Fn(moduleOp);
         deallocFnbuilder.create<func::CallOp>(
             deallocFn.getLoc(), internalDeallocFn,
             ValueRange{deallocFn.getArgument(idx)});

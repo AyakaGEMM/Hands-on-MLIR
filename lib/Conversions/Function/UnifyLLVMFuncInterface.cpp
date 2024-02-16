@@ -22,7 +22,7 @@ limitations under the License.
 #include <string>
 #include <utility>
 
-#include "Conversions/Function/FunctionCallUtils.h"
+#include "Conversions/Function/FunctionUtils.h"
 #include "Conversions/Function/Passes.h"
 #include "HOM/HOMOps.h"
 #include "WeightsEngine/WeightsEngine.h"

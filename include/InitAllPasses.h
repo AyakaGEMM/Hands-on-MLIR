@@ -17,6 +17,7 @@ inline void registerAllPasses() {
   hom::registerHOMFusionPass();
   hom::registerHOMSerializeWeightPass();
   hom::registerTosaToHOMPass();
+  hom::registerTosaConstantFoldingPass();
   hom::registerTosaToHOMPipelines();
   homnvgpu::registerHOMNVGPUFusionPass();
 }

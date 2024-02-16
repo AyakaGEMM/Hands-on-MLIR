@@ -29,6 +29,13 @@ Pattern {
   replace reshapeC with op<hom.matmul>(A, B);
 }
 
+Pattern {
+  let matmul = op<hom.matmul>(input0 : Value, input1 : Value);
+  let root = op<tosa.add>(matmul, input2 : Value);
+
+  replace root with op<hom.matmul_add>(input0, input1, input2);
+}
+
 // Try to move transpose closer to matmul.
 Pattern {
   let perm = op<tosa.const>;

@@ -12,13 +12,6 @@
 #include <vector>
 using namespace std;
 
-template <class T = float>
-inline auto convertToDynamicMemRefType(int64_t rank, void *dst) {
-  UnrankedMemRefType<T> unrankType = {rank, dst};
-  DynamicMemRefType<T> dyType(unrankType);
-  return dyType;
-}
-
 template <class T, int rank>
 void *createStridedMemRef(StridedMemRefType<T, rank> *src) {
   auto desVoid = malloc(sizeof(StridedMemRefType<T, rank>));
@@ -241,15 +234,10 @@ extern "C" void matmulAddF32(int64_t rankA, void *dstA, int64_t rankB,
   auto C = convertToDynamicMemRefType(rankC, dstC);
   auto D = convertToDynamicMemRefType(rankD, dstD);
 
-  std::cout << rankB << std::endl;
-
   assert(rankA == 3);
   assert(rankB == 3);
   assert(rankC == 3);
   assert(rankD == 3);
-
-  assert(B.sizes[0] == 1);
-  assert(C.sizes[0] == 1);
 
   assert(A.sizes[0] == B.sizes[0] || B.sizes[0] == 1);
   assert(A.sizes[0] == C.sizes[0] || C.sizes[0] == 1);

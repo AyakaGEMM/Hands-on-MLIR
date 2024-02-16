@@ -121,7 +121,7 @@ def HOM_AddOp : HOM_Op<"add", [Commutative, SameOperandsAndResultElementType]> {
   let results = (outs HOM_Tensor : $output);
 }
 
-def HOM_SoftmaxOp : HOM_Op<"softmax", [SameOperandsAndResultElementType]> {
+def HOM_SoftmaxOp : HOM_Op<"softmax", [SameOperandsAndResultShape]> {
   let summary = "Softmax operator";
 
   let description = [{Do softmax.}];
@@ -131,7 +131,7 @@ def HOM_SoftmaxOp : HOM_Op<"softmax", [SameOperandsAndResultElementType]> {
   let results = (outs HOM_Tensor : $output);
 }
 
-def HOM_LayernormOp : HOM_Op<"layernorm", [SameOperandsAndResultElementType]> {
+def HOM_LayernormOp : HOM_Op<"layernorm", [SameOperandsAndResultShape]> {
   let summary = "Layernorm operator";
 
   let description = [{Do layernorm.}];
@@ -141,7 +141,7 @@ def HOM_LayernormOp : HOM_Op<"layernorm", [SameOperandsAndResultElementType]> {
   let results = (outs HOM_Tensor : $output);
 }
 
-def HOM_GeluOp : HOM_Op<"gelu", [SameOperandsAndResultElementType]> {
+def HOM_GeluOp : HOM_Op<"gelu", [SameOperandsAndResultShape]> {
   let summary = "Gelu operator";
 
   let description = [{Do Gelu.}];
@@ -162,6 +162,10 @@ def HOM_BertMhaOp : HOM_Op<"bert_mha", []> {
                    : $scale);
 
   let results = (outs HOM_Tensor : $output);
+}
+
+def HOM_DummyTensorOp : HOM_Op<"dummy_tensor", []> {
+  let results = (outs HOM_RankedTensor : $output);
 }
 
 #endif // HOM_HOMDIALECT_TD

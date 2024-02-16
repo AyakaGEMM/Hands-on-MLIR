@@ -8,3 +8,18 @@ Pattern {
       alpha = attr<"1.0 : f32">, beta = attr<"1.0 : f32">,
       act = attr<"0 : i32">};
 }
+
+Pattern {
+  let root = op<hom.matmul>(input0
+                            : Value, input1
+                            : Value)
+                 ->(resultType
+                    : Type);
+
+  rewrite root with {
+    let dummy_tensor = op<hom.dummy_tensor>->(resultType);
+    replace root with op<homnvgpu.matmul>(input0, input1, dummy_tensor){
+        alpha = attr<"1.0 : f32">, beta = attr<"0.0 : f32">,
+        act = attr<"0 : i32">};
+  };
+}

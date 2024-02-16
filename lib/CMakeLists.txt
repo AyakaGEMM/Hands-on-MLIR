@@ -31,22 +31,15 @@ add_mlir_library(
   PUBLIC
   MLIRIR
   MLIRPass
-  MLIRTransforms)
+  MLIRTransforms
+  WeightsEngine)
 
 target_compile_definitions(hands_on_mlir_runner_utils
                            PRIVATE hands_on_mlir_runner_utils_EXPORTS)
 
 if(ENABLE_CUDA)
-  set(CUTLASS_C_API_SOURCE ExecutionEngine/CutlassCAPI.cu)
-  add_library(cutlass_c_api SHARED ${CUTLASS_C_API_SOURCE})
-  add_subdirectory(Kernels)
+  add_mlir_library(
+    hands_on_mlir_nvgpu_runner_utils SHARED
+    ExecutionEngine/HandsOnNVGPURunnerUtils.cu LINK_LIBS WeightsEngine)
+  # add_subdirectory(NVGPUKernels)
 endif()
-
-# get_target_property(target_compile_options hands_on_mlir_runner_utils
-# COMPILE_OPTIONS) STRING(REPLACE "-fsanitize=address,undefined" ""
-# target_compile_options ${target_compile_options})
-# get_target_property(target_link_options hands_on_mlir_runner_utils
-# LINK_OPTIONS) STRING(REPLACE "-fsanitize=address,undefined" ""
-# target_link_options ${target_link_options})
-# set_target_properties(hands_on_mlir_runner_utils PROPERTIES COMPILE_OPTIONS
-# "${target_compile_options}" LINK_OPTIONS "${target_link_options}" )

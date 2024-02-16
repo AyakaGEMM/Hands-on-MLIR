@@ -23,6 +23,13 @@
 
 struct C_UnrankedMemRefType : UnrankedMemRefType<float> {};
 
+template <class T = float>
+auto convertToDynamicMemRefType(int64_t rank, void *dst) {
+  UnrankedMemRefType<T> unrankType = {rank, dst};
+  DynamicMemRefType<T> dyType(unrankType);
+  return dyType;
+}
+
 extern "C" {
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT void print2DMatrixF32(int64_t rank, void *dst);
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT void fill2DRandomMatrixF32(int64_t rank,

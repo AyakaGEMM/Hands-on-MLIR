@@ -7,9 +7,9 @@ tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 text = "Hello I'm a [MASK] model."
 encoded_input = tokenizer(text, return_tensors="pt")
 encoded_input_list = [
-    encoded_input["input_ids"],
-    encoded_input["attention_mask"],
-    encoded_input["token_type_ids"],
+    encoded_input["input_ids"].expand(2, -1),
+    encoded_input["attention_mask"].expand(2, -1),
+    encoded_input["token_type_ids"].expand(2, -1),
 ]
 
 

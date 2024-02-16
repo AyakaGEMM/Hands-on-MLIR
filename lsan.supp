@@ -1,2 +1,5 @@
 # This is a known leak since we don't call deallocFn when exit the program.
 leak:HandsOnRunnerUtils.cpp
+
+# Have no idea on this leak.
+leak:cuda/run

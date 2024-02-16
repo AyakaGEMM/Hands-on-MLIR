@@ -4,7 +4,7 @@ WIP. Heavily developing in progress currently, so no document available. Should 
 
 # To-do
 
-+ Integrate cutlass
++ ~~Integrate cutlass~~
 + End-to-end huggingface bert model support
 + Autotuning cutlass (If I have enough time)
 
