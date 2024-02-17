@@ -20,7 +20,7 @@ public:
   void removeWeight(size_t idx);
 
   template <class T>
-  static void serializeWeightToDisk(const ShapedType &shape, void *data,
+  static void serializeWeightToDisk(const ShapedType &shape, T *data,
                                     const std::string &fileName);
 };
 

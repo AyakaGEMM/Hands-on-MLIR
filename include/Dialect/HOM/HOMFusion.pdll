@@ -6,6 +6,7 @@ Constraint checkMHAQKVReshape(op0 : Op, op1 : Op, op2 : Op);
 Constraint checkMHAQKVTransposePerm(op0 : Op, op1 : Op, op2 : Op);
 Constraint checkTransposeReshapeChangeable(op0 : Op);
 Rewrite changeTransposeReshape(op0 : Op, op1 : Op, op2 : Op);
+Rewrite removeRedundantReshape(op0 : Op, op1 : Op);
 Rewrite buildMHAOp(op0
                    : Op, op1
                    : Op, op2
@@ -27,6 +28,16 @@ Pattern {
   checkReshapeRemovable(reshapeA, reshapeB, reshapeC);
 
   replace reshapeC with op<hom.matmul>(A, B);
+}
+
+Pattern {
+  let newShape : Attr;
+  let reshapeA = op<tosa.reshape>(A : Value) {
+    new_shape = newShape
+  } -> (output : Type);
+  let reshapeB = op<tosa.reshape>(A){new_shape = newShape};
+
+  rewrite reshapeB with { removeRedundantReshape(reshapeA, reshapeB); };
 }
 
 Pattern {

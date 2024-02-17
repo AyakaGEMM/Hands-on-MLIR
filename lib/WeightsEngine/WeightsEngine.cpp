@@ -1,6 +1,6 @@
 #include "WeightsEngine/WeightsEngine.h"
 #include "WeightsEngine/Utils.h"
-#include "half.hpp"
+#include "half.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/Support/Casting.h"
@@ -11,15 +11,21 @@
 #include <filesystem>
 #include <memory>
 #include <string>
-
-using half_float::half;
-
 namespace mlir {
 namespace hands_on_mlir {
 
 template <class T>
-void WeightsEngine::serializeWeightToDisk(const ShapedType &shape,
-                                          void *dataPtr,
+static void printNativeElement(const T &element, llvm::raw_ostream &out) {
+  out << element;
+}
+
+template <>
+void printNativeElement(const fp16 &element, llvm::raw_ostream &out) {
+  out << float(element);
+}
+
+template <class T>
+void WeightsEngine::serializeWeightToDisk(const ShapedType &shape, T *data,
                                           const std::string &fileName) {
   auto dimSize = shape.getShape();
   std::error_code EC;
@@ -30,9 +36,9 @@ void WeightsEngine::serializeWeightToDisk(const ShapedType &shape,
   }
   out << "\n";
   auto totalSize = shape.getNumElements();
-  auto data = static_cast<T *>(dataPtr);
   for (int i = 0; i < totalSize; i++) {
-    out << data[i] << " ";
+    printNativeElement(data[i], out);
+    out << " ";
   }
   out << "\n";
 }
@@ -42,49 +48,21 @@ size_t WeightsEngine::addWeight(std::shared_ptr<void> weight) {
   return weightsIds - 1;
 }
 
-size_t WeightsEngine::addWeight(ElementsAttr &element) {
-  auto elementType = element.getElementType();
-
-  void *dataPtr;
+size_t WeightsEngine::addWeight(ElementsAttr &elements) {
   std::shared_ptr<void> sPtr;
   auto idx = addWeight(sPtr);
-  if (elementType.isF32()) {
-    castElementsToPtr<APFloat, float>(element, &dataPtr);
-    // To-do: Make it configurable
-    serializeWeightToDisk<float>(
-        element.getShapedType(), dataPtr,
+
+  auto fn = [&]<typename T>(std::shared_ptr<T> dataPtr) {
+    serializeWeightToDisk<T>(
+        elements.getShapedType(), dataPtr.get(),
         std::filesystem::path(__FILE__).parent_path().string() +
             std::string("/../../examples/torch/linear/") + std::to_string(idx) +
             ".txt");
-    sPtr.reset(static_cast<float *>(dataPtr), free);
-  } else if (elementType.isF16()) {
-    castElementsToPtr<APFloat, half_float::half>(element, &dataPtr);
-    sPtr.reset(static_cast<half_float::half *>(dataPtr), free);
-  } else if (elementType.isIntOrIndex()) {
-    auto intType = llvm::dyn_cast<IntegerType>(elementType);
-    switch (intType.getWidth()) {
-    case 64:
-      castElementsToPtr<APInt, int64_t>(element, &dataPtr);
-      sPtr.reset(static_cast<int64_t *>(dataPtr), free);
-      break;
-    case 32:
-      castElementsToPtr<APInt, int32_t>(element, &dataPtr);
-      sPtr.reset(static_cast<int32_t *>(dataPtr), free);
-      break;
-    case 16:
-      castElementsToPtr<APInt, int16_t>(element, &dataPtr);
-      sPtr.reset(static_cast<int16_t *>(dataPtr), free);
-      break;
-    case 8:
-      castElementsToPtr<APInt, int8_t>(element, &dataPtr);
-      sPtr.reset(static_cast<int8_t *>(dataPtr), free);
-      break;
-    default:
-      llvm_unreachable("Unsupported integer width. ");
-    }
-  } else {
-    llvm_unreachable("Unsupported Type");
-  }
+    sPtr = dataPtr;
+  };
+
+  universalCastElementsToPtr(elements, fn);
+
   return idx;
 }
 

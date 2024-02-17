@@ -16,14 +16,18 @@ limitations under the License.
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
+#include <functional>
 #include <iostream>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <tuple>
 #include <utility>
 
 #include "Conversions/Tosa/Passes.h"
 #include "HOM/HOMOps.h"
+#include "WeightsEngine/Utils.h"
 #include "WeightsEngine/WeightsEngine.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Tosa/IR/TosaOps.h"
@@ -273,6 +277,40 @@ static void changeTransposeReshapeImpl(PatternRewriter &rewriter,
   rewriter.replaceOp(reshape, newTranspose);
 }
 
+static void removeRedundantReshapeImpl(PatternRewriter &rewriter,
+                                       Operation *reshapeA_,
+                                       Operation *reshapeB_) {
+
+  rewriter.replaceAllUsesWith(reshapeB_->getResult(0), reshapeA_->getResult(0));
+}
+
+template <typename T>
+static void doConcat(T *oldData, T *newData, ArrayRef<int64_t> oldSize,
+                     ArrayRef<int64_t> workingSize, ArrayRef<int64_t> newSize,
+                     size_t concatDim, size_t dim) {
+  if (dim != concatDim) {
+    assert(oldSize[dim] == newSize[dim]);
+  }
+
+  if (dim + 1 >= oldSize.size()) {
+    for (int64_t i = 0; i < oldSize[dim]; i++) {
+      newData[i] = oldData[i];
+    }
+    return;
+  }
+
+  auto oldStride = std::accumulate(oldSize.begin() + dim + 1, oldSize.end(), 1,
+                                   std::multiplies<int64_t>());
+  auto newStride = std::accumulate(newSize.begin() + dim + 1, newSize.end(), 1,
+                                   std::multiplies<int64_t>());
+  for (int64_t i = 0; i < oldSize[dim]; i++) {
+    doConcat(oldData + i * oldStride,
+             newData +
+                 (i + (dim == concatDim ? workingSize[dim] : 0)) * newStride,
+             oldSize, workingSize, newSize, concatDim, dim + 1);
+  }
+}
+
 // std::tuple<hom::MatmulOp, hom::BertMhaOp>
 static Operation *buildMHAOpImpl(PatternRewriter &rewriter, Operation *reshape_,
                                  Operation *scale_, Value mask, Operation *q_,
@@ -287,9 +325,57 @@ static Operation *buildMHAOpImpl(PatternRewriter &rewriter, Operation *reshape_,
   auto kWeight = dyn_cast<tosa::ConstOp>(k.getOperand1().getDefiningOp());
   auto vWeight = dyn_cast<tosa::ConstOp>(v.getOperand1().getDefiningOp());
 
+  void *newDataPtr = nullptr;
+  auto qShape = qWeight.getValue().getShapedType().getShape();
+
+  SmallVector<int64_t> newShape = {qShape[0], qShape[1], qShape[2] * 3};
+  SmallVector<int64_t> workingShape = {qShape[0], qShape[1], 0};
+
+  auto totalSize = std::accumulate(qShape.begin(), qShape.end(), 1,
+                                   std::multiplies<int64_t>()) *
+                   3;
+  auto fn = [&]<typename T>(std::shared_ptr<T> dataPtr) {
+    if (newDataPtr == nullptr) {
+      newDataPtr = malloc(totalSize * sizeof(T));
+    }
+
+    auto newData = static_cast<T *>(newDataPtr);
+
+    doConcat(dataPtr.get(), newData, qShape, workingShape, newShape, 2, 0);
+    workingShape[2] += qShape[2];
+  };
+
+  DenseElementsAttr denseAttr;
+
+  auto fnWithAttr = [&]<typename T>(std::shared_ptr<T> dataPtr) {
+    auto newData = static_cast<T *>(newDataPtr);
+
+    doConcat(dataPtr.get(), newData, qShape, workingShape, newShape, 2, 0);
+    denseAttr = getDenseElementsAttr(qWeight.getValue().getElementType(),
+                                     newShape, newData, totalSize);
+  };
+
+  universalCastElementsToPtr(qWeight.getValue(), fn);
+  universalCastElementsToPtr(kWeight.getValue(), fn);
+  universalCastElementsToPtr(vWeight.getValue(), fnWithAttr);
+
+  free(newDataPtr);
+
+  auto constOp = rewriter.create<tosa::ConstOp>(qWeight->getLoc(),
+                                                denseAttr.getType(), denseAttr);
+
+  newShape[0] = reshape.getInput1().getType().getShape()[0];
+  newShape[1] = reshape.getInput1().getType().getShape()[1];
+  newShape[2] = qShape[2] * 3;
+
+  auto matmulOp = rewriter.create<hom::MatmulOp>(
+      q->getLoc(),
+      RankedTensorType::get(newShape, qWeight.getValue().getElementType()),
+      q.getOperand0(), constOp.getOutput());
+
   return rewriter.create<hom::BertMhaOp>(
-      scale->getLoc(), reshape.getInput1().getType(), reshape.getInput1(), mask,
-      scale.getResult());
+      scale->getLoc(), reshape.getInput1().getType(), matmulOp.getOutput(),
+      mask, scale.getResult());
 }
 
 struct HOMReinterprateTosaShape : public OpRewritePattern<tosa::ReshapeOp> {
@@ -393,6 +479,8 @@ LogicalResult HOMFusionPass::initialize(MLIRContext *ctx) {
       "checkTransposeReshapeChangeable", checkTransposeReshapeChangeableImpl);
   patternList.getPDLPatterns().registerRewriteFunction(
       "changeTransposeReshape", changeTransposeReshapeImpl);
+  patternList.getPDLPatterns().registerRewriteFunction(
+      "removeRedundantReshape", removeRedundantReshapeImpl);
   patternList.getPDLPatterns().registerRewriteFunction("buildMHAOp",
                                                        buildMHAOpImpl);
   patterns = std::move(patternList);

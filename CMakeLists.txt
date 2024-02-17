@@ -21,7 +21,7 @@ endif()
 
 project(Hands-on-MLIR LANGUAGES CXX C)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
 # -------------------------------------------------------------------------------
@@ -83,6 +83,8 @@ include_directories(${HANDS_ON_MLIR_SOURCE_DIR}/thirdparty/half-2.2.0/include)
 if(ENABLE_CUDA)
   add_compile_definitions(ENABLE_CUDA)
   enable_language(CUDA)
+  set(CMAKE_CUDA_STANDARD 17)
+  set(CMAKE_CUDA_STANDARD_REQUIRED YES)
   find_package(CUDAToolkit REQUIRED)
   include_directories(${HANDS_ON_MLIR_SOURCE_DIR}/thirdparty/cutlass/include)
   include_directories(

@@ -45,6 +45,8 @@ inline void registerTosaToHOMPipelines() {
         pm.addPass(
             tosa::createTosaLayerwiseConstantFoldPass(tosaConstFoldOption));
         pm.addPass(createTosaConstantFoldingPass());
+        pm.addPass(
+            tosa::createTosaLayerwiseConstantFoldPass(tosaConstFoldOption));
         pm.addPass(createTosaToHOMPass());
       });
 }
