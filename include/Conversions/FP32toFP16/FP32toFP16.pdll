@@ -1,0 +1,22 @@
+#include "HOM/HOMOps.td"
+#include "HOMNVGPU/HOMNVGPUOps.td"
+#include "mlir/Dialect/Tosa/IR/TosaOps.td"
+
+Constraint okToInsertCast(op
+                          : Op)[{
+  auto constOp = dyn_cast<tosa::ConstOp>(op);
+  if (constOp.getResult().getType().getElementType().isF16() ||
+      !constOp.getResult().getType().getElementType().isF32()) {
+    return failure();
+  }
+  return success();
+}];
+
+Rewrite generateCastOp(op : Op);
+
+Pattern {
+  let root = op<tosa.const>;
+  okToInsertCast(root);
+
+  rewrite root with { generateCastOp(root); };
+}

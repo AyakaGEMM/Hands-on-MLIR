@@ -1,12 +1,7 @@
 #include "WeightsEngine/WeightsEngine.h"
 #include "WeightsEngine/Utils.h"
 #include "half.h"
-#include "mlir/IR/BuiltinTypes.h"
-#include "llvm/ADT/APFloat.h"
-#include "llvm/Support/Casting.h"
-#include "llvm/Support/ErrorHandling.h"
 #include <cstddef>
-#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <memory>
@@ -20,7 +15,7 @@ static void printNativeElement(const T &element, llvm::raw_ostream &out) {
 }
 
 template <>
-void printNativeElement(const fp16 &element, llvm::raw_ostream &out) {
+void printNativeElement<fp16>(const fp16 &element, llvm::raw_ostream &out) {
   out << float(element);
 }
 

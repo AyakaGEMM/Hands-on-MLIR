@@ -23,3 +23,23 @@ Pattern {
         act = attr<"0 : i32">};
   };
 }
+
+Pattern {
+  let act = attr<"0 : i32">;
+  let matmul = op<homnvgpu.matmul>(
+      input0
+      : Value, input1
+      : Value, input2
+      : Value){act = act, alpha = A : Attr, beta = B : Attr};
+  let root = op<hom.gelu>(matmul);
+
+  replace root with op<homnvgpu.matmul>(input0, input1, input2){
+      act = attr<"1 : i32">, alpha = A, beta = B};
+}
+
+Pattern {
+  let root = op<hom.layernorm>(input
+                               : Value){axis = axis : Attr, eps = eps : Attr};
+
+  replace root with op<homnvgpu.layernorm>(input){axis = axis, eps = eps};
+}

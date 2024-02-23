@@ -2,7 +2,6 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 
 namespace mlir {
@@ -74,6 +73,13 @@ func::FuncOp lookupOrCreateGemmNVGPUF32Fn(ModuleOp moduleOp) {
                            UnrankedMemRefType::get(Float32Type::get(ctx), 0),
                            UnrankedMemRefType::get(Float32Type::get(ctx), 0),
                            Float32Type::get(ctx), Float32Type::get(ctx)},
+                          {});
+}
+func::FuncOp lookupOrCreateLayernormNVGPUF32Fn(ModuleOp moduleOp) {
+  auto ctx = moduleOp->getContext();
+  return lookupOrCreateFn(moduleOp, kLayernormNVGPUF32,
+                          {UnrankedMemRefType::get(Float32Type::get(ctx), 0),
+                           Float32Type::get(ctx)},
                           {});
 }
 

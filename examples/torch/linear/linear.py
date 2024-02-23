@@ -15,7 +15,7 @@ class A(torch.nn.Module):
 
 a = A()
 
-x = torch.ones(1, 3, 100)
+x = torch.ones(2, 3, 100)
 
 print(a(x))
 

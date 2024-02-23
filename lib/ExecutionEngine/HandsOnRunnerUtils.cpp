@@ -1,6 +1,7 @@
 #include "ExecutionEngine/HandsOnRunnerUtils.h"
-#include "mlir/ExecutionEngine/CRunnerUtils.h"
+#include "mlir/ExecutionEngine/RunnerUtils.h"
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>

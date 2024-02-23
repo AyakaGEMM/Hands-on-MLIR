@@ -1,3 +1,4 @@
+#include "Conversions/FP32toFP16/Passes.h"
 #include "Conversions/Function/Passes.h"
 #include "Conversions/HOM/Passes.h"
 #include "Conversions/MatMulCPUOptimize/Passes.h"
@@ -8,11 +9,12 @@
 namespace mlir {
 namespace hands_on_mlir {
 inline void registerAllPasses() {
-  registerMatMulCPUOptimizePass();
   registerExtractInitFuncPass();
+  registerHOMFP32ToFP16Pass();
+  registerHOMNVGPUToFuncPass();
   registerHOMToFuncPass();
   registerHOMToHOMNVGPUPass();
-  registerHOMNVGPUToFuncPass();
+  registerMatMulCPUOptimizePass();
   registerUnifyLLVMFuncInterfacePass();
   hom::registerHOMFusionPass();
   hom::registerHOMSerializeWeightPass();

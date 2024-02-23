@@ -10,7 +10,7 @@ Pattern {
   let ExpSub = op<tosa.exp>(op<tosa.sub>(input, Reducemax));
   let ReciReducesum =
       op<tosa.reciprocal>(op<tosa.reduce_sum>(ExpSub){axis = attr});
-  let root = op<tosa.mul>(ExpSub, ReciReducesum);
+  let root = op<hom.mul>(ExpSub, ReciReducesum);
 
   replace root with op<hom.softmax>(input){axis = attr};
 }
@@ -44,16 +44,15 @@ Pattern {
   let eps = op<tosa.const>;
   isSingleFloatConstant(eps);
   let reciprocalElementNum = op<tosa.const>;
-  let E = op<tosa.mul>(op<tosa.reduce_sum>(input){axis = lastDim},
-                       reciprocalElementNum){shift = shift};
+  let E = op<hom.mul>(op<tosa.reduce_sum>(input){axis = lastDim},
+                      reciprocalElementNum){shift = shift};
   let SubE = op<tosa.sub>(input, E);
-  let Var = op<tosa.mul>(
-      op<tosa.reduce_sum>(op<tosa.mul>(SubE, SubE)){axis = lastDim},
-      reciprocalElementNum){shift = shift};
+  let Var =
+      op<hom.mul>(op<tosa.reduce_sum>(op<hom.mul>(SubE, SubE)){axis = lastDim},
+                  reciprocalElementNum){shift = shift};
 
-  let root =
-      op<tosa.mul>(op<tosa.sub>(input, E),
-                   op<tosa.rsqrt>(op<tosa.add>(Var, eps))){shift = shift};
+  let root = op<hom.mul>(op<tosa.sub>(input, E),
+                         op<tosa.rsqrt>(op<hom.add>(Var, eps))){shift = shift};
 
   rewrite root with {
     let epsAttr = getSingleFloatValue(eps);
@@ -161,37 +160,37 @@ Pattern {
   geluConst6(const6);
   let const7 = op<tosa.const>;
   geluConst7(const7);
-  let inputMul = op<tosa.mul>(input
-                              : Value < _
-                              : Tosa_Tensor >, const0){shift = shift}; // 8
-  let inputMulAbs = op<tosa.abs>(inputMul);                            // 9
+  let inputMul = op<hom.mul>(input
+                             : Value < _
+                             : Tosa_Tensor >, const0){shift = shift}; // 8
+  let inputMulAbs = op<tosa.abs>(inputMul);                           // 9
   let inputMulAbsMulMul =
-      op<tosa.mul>(inputMulAbs, inputMulAbs){shift = shift}; // 12
+      op<hom.mul>(inputMulAbs, inputMulAbs){shift = shift}; // 12
   let mulAbove =
-      op<tosa.mul>(inputMulAbsMulMul, inputMulAbs){shift = shift}; // 15
-  let reciprocalStuff = op<tosa.reciprocal>(op<tosa.add>(
-      op<tosa.add>(
-          op<tosa.add>(
-              op<tosa.add>(op<tosa.mul>(inputMulAbs, const1){shift = shift},
-                           const2),
-              op<tosa.mul>(inputMulAbsMulMul, const3){shift = shift}),
-          op<tosa.mul>(mulAbove, const4){shift = shift}),
-      op<tosa.mul>(op<tosa.mul>(mulAbove, inputMulAbs){shift = shift},
-                   const5){shift = shift}));
+      op<hom.mul>(inputMulAbsMulMul, inputMulAbs){shift = shift}; // 15
+  let reciprocalStuff = op<tosa.reciprocal>(op<hom.add>(
+      op<hom.add>(
+          op<hom.add>(
+              op<hom.add>(op<hom.mul>(inputMulAbs, const1){shift = shift},
+                          const2),
+              op<hom.mul>(inputMulAbsMulMul, const3){shift = shift}),
+          op<hom.mul>(mulAbove, const4){shift = shift}),
+      op<hom.mul>(op<hom.mul>(mulAbove, inputMulAbs){shift = shift},
+                  const5){shift = shift}));
   let reciprocalStuffMul =
-      op<tosa.mul>(reciprocalStuff, reciprocalStuff){shift = shift};
+      op<hom.mul>(reciprocalStuff, reciprocalStuff){shift = shift};
   let reciprocalStuffMulMulSub =
-      op<tosa.sub>(const2, op<tosa.mul>(reciprocalStuffMul,
-                                        reciprocalStuffMul){shift = shift});
+      op<tosa.sub>(const2, op<hom.mul>(reciprocalStuffMul,
+                                       reciprocalStuffMul){shift = shift});
 
-  let root = op<tosa.mul>(
+  let root = op<hom.mul>(
       input,
-      op<tosa.mul>(op<tosa.add>(op<tosa.select>(
-                                    op<tosa.greater_equal>(inputMul, const6),
-                                    reciprocalStuffMulMulSub,
-                                    op<tosa.negate>(reciprocalStuffMulMulSub)),
-                                const2),
-                   const7){shift = shift}){shift = shift};
+      op<hom.mul>(op<hom.add>(op<tosa.select>(
+                                  op<tosa.greater_equal>(inputMul, const6),
+                                  reciprocalStuffMulMulSub,
+                                  op<tosa.negate>(reciprocalStuffMulMulSub)),
+                              const2),
+                  const7){shift = shift}){shift = shift};
 
   replace root with op<hom.gelu>(input);
 }
@@ -201,4 +200,44 @@ Pattern {
   let root = op<arith.constant>{value = value : Attr};
 
   replace root with op<tosa.const>{value = value};
+}
+
+// Convert mask
+Pattern {
+  let newShape : Attr;
+  let shift = attr<"0 : i8">;
+  let reshape = op<tosa.reshape>(input : Value){new_shape = newShape};
+  let cast = op<tosa.cast>(reshape);
+  let const0 = op<tosa.const>;
+  let const1 = op<tosa.const>;
+  let sub = op<tosa.sub>(const0, cast);
+  isSingleFloatConstant(const0);
+  let mul = op<hom.mul>(sub, const1) { shift = shift } -> (tp : Type);
+  isSingleFloatConstant(const1);
+
+  rewrite mul with {
+    let subAttr = getSingleFloatValue(const0);
+    let mulAttr = getSingleFloatValue(const1);
+    replace mul with op<hom.mask>(input) {
+      mul = mulAttr, sub = subAttr, new_shape = newShape
+    } -> (tp);
+  };
+}
+
+Pattern {
+  let root = op<tosa.add>(input0 : Value, input1 : Value);
+
+  replace root with op<hom.add>(input0, input1);
+}
+
+Pattern {
+  let root = op<tosa.mul>(input0 : Value, input1 : Value){shift = shift : Attr};
+
+  replace root with op<hom.mul>(input0, input1){shift = shift};
+}
+
+Pattern {
+  let root = op<tosa.gather>(values : Value, indices : Value);
+
+  replace root with op<hom.gather>(indices, values);
 }

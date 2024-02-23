@@ -22,20 +22,20 @@ int main() {
 
   a.descriptor = malloc(sizeof(StridedMemRefType<float, 3>));
   auto des = static_cast<StridedMemRefType<float, 3> *>(a.descriptor);
-  auto host_ptr = new float[3 * 100000];
-  checkCudaErrors(cudaMalloc(&(des->data), sizeof(float) * 3 * 100000));
+  auto host_ptr = new float[3 * 200000];
+  checkCudaErrors(cudaMalloc(&(des->data), sizeof(float) * 3 * 200000));
   std::cout << des->data << std::endl;
   des->basePtr = des->data;
-  des->sizes[0] = 1;
+  des->sizes[0] = 2;
   des->sizes[1] = 3;
   des->sizes[2] = 100000;
   des->strides[0] = 300000;
   des->strides[1] = 100000;
   des->strides[2] = 1;
-  for (int i = 0; i < 300000; i++) {
+  for (int i = 0; i < 600000; i++) {
     host_ptr[i] = 1;
   }
-  cudaMemcpy(des->data, host_ptr, sizeof(float) * 3 * 100000,
+  cudaMemcpy(des->data, host_ptr, sizeof(float) * 3 * 200000,
              cudaMemcpyHostToDevice);
 
   Res b;

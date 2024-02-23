@@ -8,6 +8,7 @@ include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/OpAsmInterface.td"
 include "HOM/HOMTypesBase.td" // Just reuses the hom types.
+include "mlir/Interfaces/InferTypeOpInterface.td"
 
 //===----------------------------------------------------------------------===//
 // HOMNVGPU Dialect Definition.
@@ -42,4 +43,45 @@ def HOMNVGPU_MatmulOp : HOMNVGPU_Op<"matmul", []> {
   let results = (outs HOM_RankedTensor : $output);
 }
 
+def HOMNVGPU_MatmulWithVarMeanOp
+    : HOMNVGPU_Op<"matmul_with_var_mean",
+                  [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+  let arguments = (ins HOM_RankedTensor
+                   : $operand0, HOM_RankedTensor
+                   : $operand1, HOM_Tensor
+                   : $operand2, F32Attr
+                   : $alpha, F32Attr
+                   : $beta, I32Attr
+                   : $act, F32Attr
+                   : $eps);
+
+  let results = (outs HOM_RankedTensor
+                 : $output, HOM_RankedTensor
+                 : $var, HOM_RankedTensor
+                 : $mean);
+}
+
+def HOMNVGPU_LayernormMatmul : HOMNVGPU_Op<"ln_matmul", []> {
+  let arguments = (ins HOM_RankedTensor
+                   : $operand0, HOM_RankedTensor
+                   : $operand1, HOM_Tensor
+                   : $operand2, HOM_RankedTensor
+                   : $var, HOM_RankedTensor
+                   : $mean, F32Attr
+                   : $alpha, F32Attr
+                   : $beta, I32Attr
+                   : $act);
+
+  let results = (outs HOM_RankedTensor : $output);
+}
+
+def HOMNVGPU_LayernormOp : HOMNVGPU_Op<"layernorm", []> {
+  let summary = "Layernorm operator";
+
+  let description = [{Do layernorm.}];
+
+  let arguments = (ins HOM_Tensor : $input, F32Attr : $eps, I32Attr : $axis);
+
+  let results = (outs HOM_Tensor : $output);
+}
 #endif // HOM_HOMNVGPUDIALECT_TD

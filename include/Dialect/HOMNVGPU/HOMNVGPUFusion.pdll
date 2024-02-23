@@ -1,84 +1,27 @@
 #include "HOM/HOMOps.td"
+#include "HOMNVGPU/HOMNVGPUOps.td"
 #include "mlir/Dialect/Tosa/IR/TosaOps.td"
 
-Constraint checkReshapeRemovable(op0 : Op, op1 : Op, op2 : Op);
-Constraint checkMHAQKVReshape(op0 : Op, op1 : Op, op2 : Op);
-Constraint checkMHAQKVTransposePerm(op0 : Op, op1 : Op, op2 : Op);
-Constraint checkTransposeReshapeChangeable(op0 : Op);
-Rewrite changeTransposeReshape(op0 : Op, op1 : Op, op2 : Op);
-Rewrite buildMHAOp(op0
-                   : Op, op1
-                   : Op, op2
-                   : Value, op3
-                   : Op, op4
-                   : Op, op5
-                   : Op)
-    ->Op;
-//  -> (Op<hom.matmul>, Op<hom.bert_mha>);
+Constraint hasOneUse(op : Op)[{ return success(op->hasOneUse()); }];
 
-// Try to remove meaningless reshape here.
+// I have to add a rewrite pattern here rather than pdll rewrite statements. Or
+// it will emit error. Idk why. Error message: `runtime error: member access
+// within null pointer of type 'mlir::IRObjectWithUseList<mlir::OpOperand>'`
+Rewrite generateGemmLnGemm(op0 : Op, op1 : Op, op2 : Op);
+
 Pattern {
-  let A : Value<_ : HOM_RankedTensor>;
-  let B : Value<_ : HOM_RankedTensor>;
-  let reshapeA = op<tosa.reshape>(A);
-  let reshapeB = op<tosa.reshape>(B);
-  let matmul = op<hom.matmul>(reshapeA, reshapeB);
-  let reshapeC = op<tosa.reshape>(matmul);
-  checkReshapeRemovable(reshapeA, reshapeB, reshapeC);
+  let matmul0 = op<homnvgpu.matmul>(
+      input0
+      : Value, input1
+      : Value, input2
+      : Value){alpha = alpha0 : Attr, beta = beta0 : Attr, act = act0 : Attr};
+  hasOneUse(matmul0);
+  let ln = op<homnvgpu.layernorm>(matmul0){eps = eps : Attr};
+  hasOneUse(ln);
+  let matmul1 = op<homnvgpu.matmul>(ln, input3 : Value, input4 : Value) {
+    alpha = alpha1 : Attr, beta = beta1 : Attr, act = act1 : Attr
+  } -> (resultType : Type);
+  hasOneUse(matmul1);
 
-  replace reshapeC with op<hom.matmul>(A, B);
-}
-
-// Try to move transpose closer to matmul.
-Pattern {
-  let perm = op<tosa.const>;
-  let transpose = op<tosa.transpose>(input1 : Value, perm);
-  let reshape = op<tosa.reshape>(transpose);
-  checkTransposeReshapeChangeable(reshape);
-
-  rewrite reshape with { changeTransposeReshape(transpose, perm, reshape); };
-}
-
-// MHA
-Pattern {
-  let hiddenState : Value<_ : HOM_RankedTensor>;
-  let qWeights = op<tosa.const>;
-  let kWeights = op<tosa.const>;
-  let vWeights = op<tosa.const>;
-  let q = op<hom.matmul>(hiddenState, qWeights);
-  let k = op<hom.matmul>(hiddenState, kWeights);
-  let v = op<hom.matmul>(hiddenState, vWeights);
-
-  let newShape : DenseI64ArrayAttr;
-  let reshapeQ = op<tosa.reshape>(q){new_shape = newShape};
-  let reshapeK = op<tosa.reshape>(k){new_shape = newShape};
-  let reshapeV = op<tosa.reshape>(v){new_shape = newShape};
-  checkMHAQKVReshape(reshapeQ, reshapeK, reshapeV);
-
-  let permQ = op<tosa.const>;
-  let permK = op<tosa.const>;
-  let permV = op<tosa.const>;
-
-  let transposeQ = op<tosa.transpose>(reshapeQ, permQ);
-  let transposeK = op<tosa.transpose>(reshapeK, permK);
-  let transposeV = op<tosa.transpose>(reshapeV, permV);
-  checkMHAQKVTransposePerm(permQ, permK, permV);
-
-  let qkBMM = op<hom.matmul>(transposeQ, transposeK);
-  let scale = op<tosa.const>;
-  let shift = attr<"0 : i8">;
-
-  let calMHA =
-      op<hom.matmul>(op<hom.softmax>(op<tosa.add>(
-                         op<tosa.mul>(qkBMM, scale){shift = shift}, mask
-                         : Value)),
-                     transposeV);
-
-  let mha = op<tosa.reshape>(op<tosa.transpose>(calMHA, permMHA
-                                                : Value < _
-                                                : HOM_RankedTensor >));
-
-  rewrite mha with {
-    replace mha with buildMHAOp(reshapeQ, scale, mask, q, k, v);
-  };
+  rewrite matmul1 with { generateGemmLnGemm(matmul0, ln, matmul1); };
 }

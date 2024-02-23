@@ -4,3 +4,8 @@
 [submodule "thirdparty/cutlass"]
 	path = thirdparty/cutlass
 	url = https://github.com/NVIDIA/cutlass.git
+[submodule "thirdparty/TransformerEngine"]
+	path = thirdparty/TransformerEngine
+	url = https://github.com/NVIDIA/TransformerEngine.git
+[submodule "thirdparty/llvm-project/"]
+	branch = main

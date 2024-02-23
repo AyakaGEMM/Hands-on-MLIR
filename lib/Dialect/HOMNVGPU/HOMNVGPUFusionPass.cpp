@@ -24,6 +24,7 @@ limitations under the License.
 
 #include "Conversions/Tosa/Passes.h"
 #include "HOM/HOMOps.h"
+#include "HOMNVGPU/HOMNVGPUOps.h"
 #include "WeightsEngine/WeightsEngine.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Tosa/IR/TosaOps.h"
@@ -57,6 +58,26 @@ namespace homnvgpu {
 
 namespace {
 
+static void generateGemmLnGemmImpl(PatternRewriter &rewriter, Operation *gemm0_,
+                                   Operation *ln_, Operation *gemm1_) {
+
+  auto gemm0 = dyn_cast<homnvgpu::MatmulOp>(gemm0_);
+  auto ln = dyn_cast<homnvgpu::LayernormOp>(ln_);
+  auto gemm1 = dyn_cast<homnvgpu::MatmulOp>(gemm1_);
+
+  auto gemmWithVarMean = rewriter.create<homnvgpu::MatmulWithVarMeanOp>(
+      gemm0->getLoc(), gemm0.getOperand0(), gemm0.getOperand1(),
+      gemm0.getOperand2(), gemm0.getAlpha(), gemm0.getBeta(), gemm0.getAct(),
+      ln.getEps());
+  auto LnGemm = rewriter.create<homnvgpu::LayernormMatmul>(
+      gemm1->getLoc(), gemm1.getResult().getType(), gemmWithVarMean.getOutput(),
+      gemm1.getOperand1(), gemm1.getOperand2(), gemmWithVarMean.getVar(),
+      gemmWithVarMean.getMean(), gemm1.getAlpha(), gemm1.getBeta(),
+      gemm1.getAct());
+
+  gemm1.replaceAllUsesWith(LnGemm.getResult());
+}
+
 struct HOMNVGPUFusionPass : impl::HOMNVGPUFusionPassBase<HOMNVGPUFusionPass> {
   void runOnOperation() final;
 
@@ -70,6 +91,8 @@ LogicalResult HOMNVGPUFusionPass::initialize(MLIRContext *ctx) {
   RewritePatternSet patternList(ctx);
 
   populateGeneratedPDLLPatterns(patternList);
+  patternList.getPDLPatterns().registerRewriteFunction("generateGemmLnGemm",
+                                                       generateGemmLnGemmImpl);
   patterns = std::move(patternList);
   return success();
 }

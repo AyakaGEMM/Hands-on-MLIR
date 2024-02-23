@@ -18,9 +18,6 @@
 #define HANDS_ON_MLIR_RUNNERUTILS_EXPORT __attribute__((visibility("default")))
 #endif // _WIN32
 
-#include "mlir/ExecutionEngine/RunnerUtils.h"
-#include <stddef.h>
-
 struct C_UnrankedMemRefType : UnrankedMemRefType<float> {};
 
 template <class T = float>

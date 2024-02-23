@@ -15,7 +15,6 @@ Rewrite buildMHAOp(op0
                    : Op, op5
                    : Op)
     ->Op;
-//  -> (Op<hom.matmul>, Op<hom.bert_mha>);
 
 // Try to remove meaningless reshape here.
 Pattern {
@@ -42,7 +41,7 @@ Pattern {
 
 Pattern {
   let matmul = op<hom.matmul>(input0 : Value, input1 : Value);
-  let root = op<tosa.add>(matmul, input2 : Value);
+  let root = op<hom.add>(matmul, input2 : Value);
 
   replace root with op<hom.matmul_add>(input0, input1, input2);
 }
@@ -86,11 +85,10 @@ Pattern {
   let scale = op<tosa.const>;
   let shift = attr<"0 : i8">;
 
-  let calMHA =
-      op<hom.matmul>(op<hom.softmax>(op<tosa.add>(
-                         op<tosa.mul>(qkBMM, scale){shift = shift}, mask
-                         : Value)),
-                     transposeV);
+  let calMHA = op<hom.matmul>(
+      op<hom.softmax>(op<hom.add>(op<hom.mul>(qkBMM, scale){shift = shift}, mask
+                                  : Value)),
+      transposeV);
 
   let mha = op<tosa.reshape>(op<tosa.transpose>(calMHA, permMHA
                                                 : Value < _
@@ -99,4 +97,19 @@ Pattern {
   rewrite mha with {
     replace mha with buildMHAOp(reshapeQ, scale, mask, q, k, v);
   };
+}
+
+Pattern {
+  let cast = op<tosa.cast>(input : Value);
+  let root = op<hom.gather>(cast, values : Value);
+
+  replace root with op<hom.gather>(input, values);
+}
+
+Pattern {
+  let reshape = op<tosa.reshape>(input : Value);
+  let root = op<hom.gather>(reshape, values : Value);
+  let reshape0 = op<tosa.reshape>(root);
+
+  replace reshape0 with op<hom.gather>(input, values);
 }

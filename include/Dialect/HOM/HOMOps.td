@@ -51,7 +51,7 @@ def HOM_ConstantOp : HOM_Op<"constant", [ConstantLike]> {
   let hasFolder = 1;
 }
 
-def HOM_TransposeOp : HOM_Op<"transpose", [SameOperandsAndResultElementType]> {
+def HOM_TransposeOp : HOM_Op<"transpose", []> {
   let summary = "Transpose operation";
   let description = [{
     Permutes the dimensions of `operand` tensor using `permutation` and produces
@@ -109,7 +109,7 @@ def HOM_MatmulAddOp : HOM_Op<"matmul_add", []> {
   let results = (outs HOM_RankedTensor : $output);
 }
 
-def HOM_AddOp : HOM_Op<"add", [Commutative, SameOperandsAndResultElementType]> {
+def HOM_AddOp : HOM_Op<"add", [Commutative]> {
   let summary = "Elementwise addition operator";
 
   let description =
@@ -117,6 +117,24 @@ def HOM_AddOp : HOM_Op<"add", [Commutative, SameOperandsAndResultElementType]> {
             input2.Axis of size 1 will be broadcast as necessary.}];
 
   let arguments = (ins HOM_Tensor : $input1, HOM_Tensor : $input2);
+
+  let results = (outs HOM_Tensor : $output);
+}
+
+def HOM_MulOp : HOM_Op<"mul", [
+  Commutative,
+]> {
+  let summary = "Multiplication operator";
+
+  let description =
+      [{Elementwise multiplication(Hadamard product)
+            of input1 and input2.Axis of size 1 will be broadcast,
+        as necessary.i8 / i16 input type can be promoted to i32 result type.}];
+
+  let arguments = (ins HOM_Tensor
+                   : $input1, HOM_Tensor
+                   : $input2, I8Attr
+                   : $shift);
 
   let results = (outs HOM_Tensor : $output);
 }
@@ -165,6 +183,22 @@ def HOM_BertMhaOp : HOM_Op<"bert_mha", []> {
 }
 
 def HOM_DummyTensorOp : HOM_Op<"dummy_tensor", []> {
+  let results = (outs HOM_RankedTensor : $output);
+}
+
+def HOM_GenMaskOp : HOM_Op<"mask", []> {
+  let arguments = (ins HOM_RankedTensor
+                   : $input, DenseI64ArrayAttr
+                   : $new_shape, F32Attr
+                   : $sub, F32Attr
+                   : $mul);
+
+  let results = (outs HOM_RankedTensor : $output);
+}
+
+def HOM_GatherOp : HOM_Op<"gather", []> {
+  let arguments = (ins HOM_RankedTensor : $input, HOM_RankedTensor : $value);
+
   let results = (outs HOM_RankedTensor : $output);
 }
 

@@ -8,6 +8,7 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/FloatingPointMode.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/VersionTuple.h"
@@ -169,12 +170,13 @@ DenseElementsAttr getDenseElementsAttr(Type tp, ArrayRef<int64_t> size, T *data,
 template <>
 inline DenseElementsAttr getDenseElementsAttr(Type tp, ArrayRef<int64_t> size,
                                               fp16 *data, int64_t totalSize) {
-  SmallVector<float> upcastData;
-  for (int64_t i = 0; i < totalSize; i++) {
-    upcastData.emplace_back(data[i]);
+  SmallVector<APFloat> vec;
+  for (int i = 0; i < totalSize; i++) {
+    vec.emplace_back(APFloat(float(data[i])));
+    bool a;
+    vec[i].convert(APFloat::IEEEhalf(), llvm::RoundingMode::Dynamic, &a);
   }
-  return DenseElementsAttr::get(RankedTensorType::get(size, tp),
-                                ArrayRef<float>(upcastData));
+  return DenseElementsAttr::get(RankedTensorType::get(size, tp), vec);
 }
 
 enum class NumericTypeID {

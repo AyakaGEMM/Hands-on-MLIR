@@ -36,6 +36,7 @@ limitations under the License.
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/IR/Types.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Support/LogicalResult.h"
@@ -137,7 +138,6 @@ struct ConvertHOMNVGPUMatmulOp
       }
     }
 
-    // maybeInsertDeallocFn(rewriter, op, {allocCaller->getResult(0)});
     rewriter.eraseOp(op);
 
     return success();
@@ -165,8 +165,48 @@ struct ConvertHOMConstantOp : public OpConversionPattern<hom::ConstantOp> {
       op->getUses().begin()->set(allocCaller->getResult(0));
     }
 
-    // maybeInsertDeallocFn(rewriter, op, {allocCaller->getResult(0)});
     rewriter.eraseOp(op);
+
+    return success();
+  }
+};
+
+struct ConvertHOMNVGPULayernormOp
+    : public OpConversionPattern<homnvgpu::LayernormOp> {
+  using OpConversionPattern<homnvgpu::LayernormOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(homnvgpu::LayernormOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto loc = op->getLoc();
+    auto moduleOp = op->getParentOfType<ModuleOp>();
+
+    Type elementType;
+
+    if (auto tensorTy = dyn_cast<TensorType>(op->getOperand(0).getType())) {
+      elementType = tensorTy.getElementType();
+    } else if (auto memrefTy =
+                   dyn_cast<MemRefType>(op->getOperand(0).getType())) {
+      elementType = memrefTy.getElementType();
+    } else {
+      llvm_unreachable("Not ok.");
+    }
+
+    auto lnFn = lookupOrCreateLayernormNVGPUF32Fn(moduleOp);
+
+    auto eps = rewriter.create<arith::ConstantFloatOp>(loc, op.getEps(),
+                                                       rewriter.getF32Type());
+
+    SmallVector<Value> operands = {op.getOperand(), eps->getResult(0)};
+    auto lnCaller = rewriter.create<func::CallOp>(loc, lnFn, operands);
+
+    while (!op.use_empty()) {
+      op->getUses().begin()->set(lnCaller.getOperand(0));
+    }
+
+    rewriter.eraseOp(op);
+
+    lnCaller->getOperand(0).setType(UnrankedMemRefType::get(elementType, 0));
 
     return success();
   }
@@ -201,7 +241,8 @@ void HOMNVGPUToFuncPass::runOnOperation() {
   });
 
   convPatterns.add<ConvertHOMNVGPUMatmulOp, ConvertHOMConstantOp,
-                   ConvertHOMDummyTensorOp>(typeConverter, context);
+                   ConvertHOMDummyTensorOp, ConvertHOMNVGPULayernormOp>(
+      typeConverter, context);
 
   target.addLegalDialect<func::FuncDialect, arith::ArithDialect>();
   target.addIllegalDialect<hom::HOMDialect, homnvgpu::HOMNVGPUDialect>();

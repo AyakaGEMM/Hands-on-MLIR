@@ -16,7 +16,6 @@
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/Operation.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Transforms/DialectConversion.h"
 
@@ -38,6 +37,7 @@ constexpr llvm::StringRef kInit = "_initFn";
 constexpr llvm::StringRef kMatmulAddF32 = "matmulAddF32";
 constexpr llvm::StringRef kMatmulNVGPUF32 = "cutlassMatmulF32";
 constexpr llvm::StringRef kGemmNVGPUF32 = "cutlassGemmF32";
+constexpr llvm::StringRef kLayernormNVGPUF32 = "nvteLayernormF32";
 
 func::FuncOp lookupOrCreateFn(ModuleOp moduleOp, StringRef name,
                               ArrayRef<Type> paramTypes,
@@ -58,6 +58,7 @@ func::FuncOp lookupOrCreateMatmulAddF32Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateMatmulF32Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateMatmulNVGPUF32Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateGemmNVGPUF32Fn(ModuleOp moduleOp);
+func::FuncOp lookupOrCreateLayernormNVGPUF32Fn(ModuleOp moduleOp);
 
 class HOMFuncTypeConverter : public TypeConverter {
 public:

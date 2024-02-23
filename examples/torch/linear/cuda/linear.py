@@ -24,7 +24,7 @@ class LinearWithResidual(torch.nn.Module):
 
 a = LinearWithoutBias()
 
-x = torch.ones(1, 3, 100000)
+x = torch.ones(2, 3, 100000)
 
 module = torch_mlir.compile(a, x, output_type="tosa")
 with open("linear.mlir", "w") as fl:

@@ -15,6 +15,7 @@ target_link_libraries(
           MLIRHOM
           MLIRHOMNVGPU
           WeightsEngine
-          TosaToHOMTransforms)
+          TosaToHOMTransforms
+          HOMFP32ToFP16Transforms)
 
 mlir_check_all_link_libraries(hands-on-opt)

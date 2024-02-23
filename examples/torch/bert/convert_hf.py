@@ -26,12 +26,11 @@ class BertWrapper(torch.nn.Module):
 
 
 model = BertWrapper()
-
 model.eval()
 
 with torch.no_grad():
     module = torch_mlir.compile(
-        model, encoded_input_list, output_type="tosa", use_tracing=True
+        model, encoded_input_list, output_type="TOSA", use_tracing=True
     )
     # output = model(*encoded_input_list)
 with open("bert.mlir", "w") as fl:

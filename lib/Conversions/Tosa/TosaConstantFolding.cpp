@@ -75,16 +75,6 @@ void doSliceFolding(const T *oldData, T *newData, ArrayRef<int64_t> start,
   }
 }
 
-template <typename T> std::shared_ptr<T[]> getNewData(size_t size) {
-  static std::shared_ptr<T[]> newData;
-  static size_t newDataSize = 0;
-  if (size > newDataSize) {
-    newData.reset(new T[size]);
-    newDataSize = size;
-  }
-  return newData;
-}
-
 template <typename T>
 static tosa::ConstOp foldSlice(PatternRewriter &rewriter,
                                tosa::ConstOp oldConst, T *data,
@@ -100,60 +90,6 @@ static tosa::ConstOp foldSlice(PatternRewriter &rewriter,
   auto denseAttr =
       getDenseElementsAttr(oldOutput.getType().getElementType(), size,
                            newData.get(), requestNewDataSize);
-
-  return rewriter.create<tosa::ConstOp>(oldConst->getLoc(), denseAttr.getType(),
-                                        denseAttr);
-}
-
-template <typename T, typename T0>
-static auto doCastFolding(T *data, Type newType, ArrayRef<int64_t> size,
-                          size_t totalSize) {
-  auto newData = getNewData<T0>(totalSize);
-  for (size_t i = 0; i < totalSize; i++) {
-    newData.get()[i] = data[i];
-  }
-  return getDenseElementsAttr(newType, size, newData.get(), totalSize);
-}
-
-template <typename T>
-static tosa::ConstOp foldCast(PatternRewriter &rewriter, tosa::ConstOp oldConst,
-                              Type newType, T *data, ArrayRef<int64_t> size) {
-  auto requestNewDataSize =
-      std::accumulate(size.begin(), size.end(), 1, std::multiplies<T>());
-
-  DenseElementsAttr denseAttr;
-
-  if (newType.isF32()) {
-    denseAttr =
-        doCastFolding<T, float>(data, newType, size, requestNewDataSize);
-  } else if (newType.isF16()) {
-    denseAttr =
-        doCastFolding<T, float>(data, newType, size, requestNewDataSize);
-  } else if (newType.isIntOrIndex()) {
-    auto intType = llvm::dyn_cast<IntegerType>(newType);
-    switch (intType.getWidth()) {
-    case 64:
-      denseAttr =
-          doCastFolding<T, int64_t>(data, newType, size, requestNewDataSize);
-      break;
-    case 32:
-      denseAttr =
-          doCastFolding<T, int32_t>(data, newType, size, requestNewDataSize);
-      break;
-    case 16:
-      denseAttr =
-          doCastFolding<T, int16_t>(data, newType, size, requestNewDataSize);
-      break;
-    case 8:
-      denseAttr =
-          doCastFolding<T, int8_t>(data, newType, size, requestNewDataSize);
-      break;
-    default:
-      llvm_unreachable("Unsupported integer width. ");
-    }
-  } else {
-    llvm_unreachable("Not supported type.");
-  }
 
   return rewriter.create<tosa::ConstOp>(oldConst->getLoc(), denseAttr.getType(),
                                         denseAttr);

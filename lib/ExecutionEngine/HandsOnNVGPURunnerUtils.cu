@@ -1,11 +1,26 @@
 #include "ExecutionEngine/HandsOnNVGPURunnerUtils.h"
 #include "ExecutionEngine/HandsOnRunnerUtils.h"
-#include "NVGPUKernels/OperationRunner.h"
+#include "NVGPUKernels/GemmRunner.h"
+#include "NVGPUKernels/Layernorm.h"
 #include "NVGPUKernels/Utils.h"
+#include "NVGPUKernels/gemm_with_epilogue_visitor.h"
+#include "cute/numeric/int.hpp"
+#include "cutlass/arch/arch.h"
+#include "cutlass/arch/mma.h"
 #include "cutlass/cutlass.h"
+#include "cutlass/gemm/device/default_gemm_configuration.h"
+#include "cutlass/gemm/kernel/default_gemm.h"
+#include "cutlass/gemm/kernel/default_gemm_universal.h"
+#include "cutlass/gemm/kernel/default_gemm_universal_with_visitor.h"
+#include "cutlass/gemm/kernel/gemm_universal_with_visitor.h"
+#include "cutlass/gemm/threadblock/threadblock_swizzle.h"
+#include "cutlass/half.h"
+#include "cutlass/layout/matrix.h"
+#include "cutlass/tensor_ref.h"
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cassert>
+#include <complex.h>
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
@@ -14,7 +29,6 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -43,6 +57,90 @@ void cutlassGemmF32(int64_t rankA, void *dstA, int64_t rankB, void *dstB,
 
   assert(status == cutlass::Status::kSuccess);
 }
+
+void cutlassGemmF16(int64_t rankA, void *dstA, int64_t rankB, void *dstB,
+                    int64_t rankC, void *dstC, int64_t rankD, void *dstD,
+                    float alpha, float beta) {
+
+  // Ideally, we should use manifest with generated template here.
+  using RowMajor = cutlass::layout::RowMajor;
+  using CutlassGemm =
+      cutlass::gemm::device::Gemm<cutlass::half_t, // Data-type of A matrix
+                                  RowMajor,        // Layout of A matrix
+                                  cutlass::half_t, // Data-type of B matrix
+                                  RowMajor,        // Layout of B matrix
+                                  cutlass::half_t, // Data-type of C matrix
+                                  RowMajor>;       // Layout of C matrix
+
+  mlir::hands_on_mlir::GemmOperationRunner<CutlassGemm> gemm;
+
+  auto status =
+      gemm.run(rankA, dstA, rankB, dstB, rankC, dstC, rankD, dstD, alpha, beta);
+
+  std::cout << cutlass::cutlassGetStatusString(status) << std::endl;
+
+  assert(status == cutlass::Status::kSuccess);
+}
+
+void cutlassGemmWithVarMeanF16(int64_t rankA, void *dstA, int64_t rankB,
+                               void *dstB, int64_t rankC, void *dstC,
+                               int64_t rankD, void *dstD, int64_t rankVar,
+                               void *dstVar, int64_t rankMean, void *dstMean,
+                               float alpha, float beta, int64_t activation,
+                               float eps) {
+
+  using EpilogueFunctorOp = cutlass::epilogue::thread::LinearCombination<
+      cutlass::half_t, 128 / cutlass::sizeof_bits<cutlass::half_t>::value,
+      cutlass::half_t, cutlass::half_t>;
+
+  using ThreadblockShape = cutlass::gemm::GemmShape<128, 128, 32>;
+  using WarpShape = cutlass::gemm::GemmShape<64, 64, 32>;
+  using InstructionShape = cutlass::gemm::GemmShape<16, 8, 16>;
+
+  using DefaultGemmKernel =
+      typename cutlass::gemm::kernel::DefaultGemmUniversal<
+          cutlass::half_t, cutlass::layout::RowMajor,
+          cutlass::ComplexTransform::kNone,
+          128 / cutlass::sizeof_bits<cutlass::half_t>::value, cutlass::half_t,
+          cutlass::layout::RowMajor, cutlass::ComplexTransform::kNone,
+          128 / cutlass::sizeof_bits<cutlass::half_t>::value, cutlass::half_t,
+          cutlass::layout::RowMajor, cutlass::half_t,
+          cutlass::arch::OpClassTensorOp, cutlass::arch::Sm80, ThreadblockShape,
+          WarpShape, InstructionShape, EpilogueFunctorOp,
+          cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<>, 2,
+          typename cutlass::gemm::device::DefaultGemmConfiguration<
+              cutlass::arch::OpClassTensorOp, cutlass::arch::Sm80,
+              cutlass::half_t, cutlass::half_t, cutlass::half_t,
+              cutlass::half_t>::Operator>::GemmKernel;
+
+  using EpilogueVisitor = mlir::hands_on_mlir::EpilogueVisitorLayerNorm<
+      ThreadblockShape, DefaultGemmKernel::kThreadCount,
+      DefaultGemmKernel::Epilogue::OutputTileIterator,
+      DefaultGemmKernel::Epilogue::AccumulatorFragmentIterator::AccumulatorTile,
+      cutlass::half_t, cutlass::half_t, cutlass::half_t, float,
+      EpilogueFunctorOp>;
+
+  using Epilogue = typename cutlass::epilogue::threadblock::
+      EpilogueWithVisitorFromExistingEpilogue<
+          EpilogueVisitor, typename DefaultGemmKernel::Epilogue>::Epilogue;
+
+  using Gemm = cutlass::gemm::kernel::GemmWithEpilogueVisitorFromExample<
+      DefaultGemmKernel::Mma, Epilogue, DefaultGemmKernel::ThreadblockSwizzle>;
+
+  mlir::hands_on_mlir::GemmOperationWithVarMeanRunner<Gemm> gemm;
+
+  auto status = gemm.run(rankA, dstA, rankB, dstB, rankC, dstC, rankD, dstD,
+                         rankVar, dstVar, rankMean, dstMean, alpha, beta, eps);
+
+  assert(status == cutlass::Status::kSuccess);
+}
+
+void cutlassLayernormGemmF32(int64_t rankA, void *dstA, int64_t rankB,
+                             void *dstB, int64_t rankC, void *dstC,
+                             int64_t rankD, void *dstD, int64_t rankVar,
+                             void *dstVar, int64_t rankMean, void *dstMean,
+                             float alpha, float beta, float eps,
+                             int64_t activation) {}
 
 C_UnrankedMemRefType allocConstantNVGPUF32(int32_t idx) {
   auto haha = C_UnrankedMemRefType();
@@ -83,8 +181,17 @@ C_UnrankedMemRefType allocConstantNVGPUF32(int32_t idx) {
   return haha;
 }
 
-extern "C" C_UnrankedMemRefType alloc3DMemRefNVGPUF32(int32_t a, int32_t b,
-                                                      int32_t c) {
+void nvteLayernormF32(int64_t rankA, void *dstA, float eps) {
+  mlir::hands_on_mlir::LayernormRunner<float> lnRunner;
+  lnRunner.run(rankA, dstA, eps);
+}
+
+void nvteLayernormF16(int64_t rankA, void *dstA, float eps) {
+  mlir::hands_on_mlir::LayernormRunner<half> lnRunner;
+  lnRunner.run(rankA, dstA, eps);
+}
+
+C_UnrankedMemRefType alloc3DMemRefNVGPUF32(int32_t a, int32_t b, int32_t c) {
   auto returnMemRef = C_UnrankedMemRefType();
   returnMemRef.rank = 3;
   returnMemRef.descriptor = malloc(sizeof(StridedMemRefType<float, 3>));
@@ -104,7 +211,7 @@ extern "C" C_UnrankedMemRefType alloc3DMemRefNVGPUF32(int32_t a, int32_t b,
   return returnMemRef;
 }
 
-extern "C" void deallocNVGPUF32(int64_t rank, void *dst) {
+void deallocNVGPUF32(int64_t rank, void *dst) {
   auto memRef = convertToDynamicMemRefType(rank, dst);
   cudaFree(memRef.data);
 }

@@ -5,6 +5,7 @@
 #include "mlir/IR/BuiltinTypeInterfaces.h"
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <unordered_map>
 
 namespace mlir {
