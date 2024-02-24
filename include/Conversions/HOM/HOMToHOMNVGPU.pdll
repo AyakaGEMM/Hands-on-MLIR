@@ -43,3 +43,13 @@ Pattern {
 
   replace root with op<homnvgpu.layernorm>(input){axis = axis, eps = eps};
 }
+
+Pattern {
+  let root = op<hom.bert_mha>(
+      qkv
+      : Value, mask
+      : Value){scale = scale : Attr, head_num = head_num : Attr};
+
+  replace root with op<homnvgpu.bert_mha>(qkv, mask){scale = scale,
+                                                     head_num = head_num};
+}

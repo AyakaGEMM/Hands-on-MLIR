@@ -1,5 +1,6 @@
 #include "ExecutionEngine/HandsOnNVGPURunnerUtils.h"
 #include "ExecutionEngine/HandsOnRunnerUtils.h"
+#include "NVGPUKernels/BertAttentionRunner.h"
 #include "NVGPUKernels/GemmRunner.h"
 #include "NVGPUKernels/Layernorm.h"
 #include "NVGPUKernels/Utils.h"
@@ -189,6 +190,22 @@ void nvteLayernormF32(int64_t rankA, void *dstA, float eps) {
 void nvteLayernormF16(int64_t rankA, void *dstA, float eps) {
   mlir::hands_on_mlir::LayernormRunner<half> lnRunner;
   lnRunner.run(rankA, dstA, eps);
+}
+
+void nvteBertAttentionF32(int64_t rankA, void *dstA, int64_t rankSeqlen,
+                          void *dstSeqlen, int64_t rankOut, void *dstOut,
+                          float scale, int64_t headNum) {
+  mlir::hands_on_mlir::BertAttentionRunner<float> bertAttnRunner;
+  bertAttnRunner.run(rankA, dstA, rankSeqlen, dstSeqlen, rankOut, dstOut, scale,
+                     headNum);
+}
+
+void nvteBertAttentionF16(int64_t rankA, void *dstA, int64_t rankSeqlen,
+                          void *dstSeqlen, int64_t rankOut, void *dstOut,
+                          float scale, int64_t headNum) {
+  mlir::hands_on_mlir::BertAttentionRunner<half> bertAttnRunner;
+  bertAttnRunner.run(rankA, dstA, rankSeqlen, dstSeqlen, rankOut, dstOut, scale,
+                     headNum);
 }
 
 C_UnrankedMemRefType alloc3DMemRefNVGPUF32(int32_t a, int32_t b, int32_t c) {

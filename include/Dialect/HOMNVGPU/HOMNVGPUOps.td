@@ -84,4 +84,29 @@ def HOMNVGPU_LayernormOp : HOMNVGPU_Op<"layernorm", []> {
 
   let results = (outs HOM_Tensor : $output);
 }
+
+def HOMNVGPU_BertMhaOp : HOMNVGPU_Op<"bert_mha", []> {
+  let summary = "Bert's MHA operator";
+
+  let description = [{Do Bert MHA.}];
+
+  let arguments = (ins HOM_RankedTensor
+                   : $qkv, HOM_RankedTensor
+                   : $mask, F32Attr
+                   : $scale, I64Attr
+                   : $head_num);
+
+  let results = (outs HOM_RankedTensor : $output);
+}
+
+def HOMNVGPU_CuSeqLenOp : HOMNVGPU_Op<"cu_seqlen", []> {
+  let summary = "Bert's MHA operator";
+
+  let description = [{Do Bert MHA.}];
+
+  let arguments = (ins HOM_RankedTensor : $input);
+
+  let results = (outs HOM_RankedTensor : $output);
+}
+
 #endif // HOM_HOMNVGPUDIALECT_TD

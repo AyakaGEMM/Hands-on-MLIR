@@ -45,6 +45,16 @@ nvteLayernormF32(int64_t rankA, void *dstA, float eps = 1e-6);
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT void
 nvteLayernormF16(int64_t rankA, void *dstA, float eps = 1e-6);
 
+HANDS_ON_MLIR_RUNNERUTILS_EXPORT void
+nvteBertAttentionF32(int64_t rankA, void *dstA, int64_t rankSeqlen,
+                     void *dstSeqlen, int64_t rankOut, void *dstOut,
+                     float scale, int64_t headNum);
+
+HANDS_ON_MLIR_RUNNERUTILS_EXPORT void
+nvteBertAttentionF16(int64_t rankA, void *dstA, int64_t rankSeqlen,
+                     void *dstSeqlen, int64_t rankOut, void *dstOut,
+                     float scale, int64_t headNum);
+
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT C_UnrankedMemRefType
 allocConstantNVGPUF32(int32_t idx);
 

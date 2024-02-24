@@ -625,22 +625,8 @@ template <typename ElementType> class LayernormRunner : public OperationRunner {
     size_t bs = A.rank == 3 ? A.sizes[0] * A.sizes[1] : A.sizes[0];
     size_t hidden_size = A.rank == 3 ? A.sizes[2] : A.sizes[1];
 
-    std::cout << bs << " " << hidden_size << std::endl;
-
-    static std::shared_ptr<ElementType> zeroData, outData;
-    static size_t zeroSize = 0, outSize = 0;
-    ElementType *ptr;
-    if (zeroSize < hidden_size) {
-      zeroSize = hidden_size;
-      checkCudaErrors(cudaMalloc(&ptr, sizeof(ElementType) * zeroSize));
-      checkCudaErrors(cudaMemset(ptr, 0, sizeof(ElementType) * zeroSize));
-      zeroData.reset(ptr, cudaFree);
-    }
-    if (outSize < bs) {
-      outSize = bs;
-      checkCudaErrors(cudaMalloc(&ptr, sizeof(ElementType) * outSize));
-      outData.reset(ptr, cudaFree);
-    }
+    auto zeroData = getZeroPointer<ElementType>(hidden_size),
+         outData = getDummyPointer<ElementType>(bs);
 
     TensorWrapper workspace_dummy, barrier_dummy;
     int mpCount;
@@ -690,6 +676,12 @@ public:
                          betaTensor.data(), eps, outputTensor.data(),
                          muTensor.data(), rsigmaTensor.data(), nullptr, mpCount,
                          workspace.data(), barrier.data());
+
+    auto error = cudaGetLastError();
+
+    if (error != cudaSuccess) {
+      return Status::kErrorInternal;
+    }
 
     return Status::kSuccess;
   }

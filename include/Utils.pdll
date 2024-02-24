@@ -1,0 +1,22 @@
+#include "HOM/HOMOps.td"
+
+Rewrite getSingleFloatValue(op
+                            : Op)
+    ->F32Attr[{
+      auto value = dyn_cast<tosa::ConstOp>(op).getValueAttr();
+      auto elementType = value.getElementType();
+
+      auto data = value.getValues<APFloat>()[0].convertToFloat();
+      return rewriter.getFloatAttr(elementType, data);
+    }];
+
+Constraint isSingleFloatConstant(op
+                                 : Op)[{
+  auto constOp = dyn_cast<tosa::ConstOp>(op);
+  if (constOp) {
+    auto value = constOp.getValueAttr();
+    auto elementType = value.getElementType();
+    return success(elementType.isF32() && value.getNumElements() == 1);
+  }
+  return failure();
+}];

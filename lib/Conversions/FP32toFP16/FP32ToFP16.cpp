@@ -98,6 +98,29 @@ public:
           }
         }
       }
+
+      // Stuipid WAR for bert mha ut.
+      if (dyn_cast<hom::MatmulOp>(op) || dyn_cast<hom::MatmulAddOp>(op)) {
+        if (auto tp =
+                dyn_cast<RankedTensorType>(op->getOperandTypes().front())) {
+          if (tp.getElementType().isF32()) {
+            auto newTp =
+                RankedTensorType::get(tp.getShape(), rewriter.getF16Type());
+            op->getOperand(0).setType(newTp);
+            isModified = true;
+          }
+        }
+      }
+      if (dyn_cast<hom::BertMhaOp>(op)) {
+        if (auto tp = dyn_cast<RankedTensorType>(op->getOperandTypes()[1])) {
+          if (tp.getElementType().isF32()) {
+            auto newTp =
+                RankedTensorType::get(tp.getShape(), rewriter.getF16Type());
+            op->getOperand(1).setType(newTp);
+            isModified = true;
+          }
+        }
+      }
       return success(isModified);
     }
 

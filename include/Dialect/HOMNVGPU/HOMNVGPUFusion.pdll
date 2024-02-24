@@ -8,6 +8,7 @@ Constraint hasOneUse(op : Op)[{ return success(op->hasOneUse()); }];
 // it will emit error. Idk why. Error message: `runtime error: member access
 // within null pointer of type 'mlir::IRObjectWithUseList<mlir::OpOperand>'`
 Rewrite generateGemmLnGemm(op0 : Op, op1 : Op, op2 : Op);
+Rewrite updateMaskWithCuSeqLen(op0 : Op, op1 : Op);
 
 Pattern {
   let matmul0 = op<homnvgpu.matmul>(
@@ -24,4 +25,11 @@ Pattern {
   hasOneUse(matmul1);
 
   rewrite matmul1 with { generateGemmLnGemm(matmul0, ln, matmul1); };
+}
+
+Pattern {
+  let mask = op<hom.mask>(input : Value);
+  let attn = op<homnvgpu.bert_mha>(input0 : Value, mask);
+
+  rewrite attn with { updateMaskWithCuSeqLen(mask, attn); };
 }

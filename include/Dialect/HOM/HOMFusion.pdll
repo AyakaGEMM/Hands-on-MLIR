@@ -1,4 +1,5 @@
 #include "HOM/HOMOps.td"
+#include "Utils.pdll"
 #include "mlir/Dialect/Tosa/IR/TosaOps.td"
 
 Constraint checkReshapeRemovable(op0 : Op, op1 : Op, op2 : Op);
@@ -8,8 +9,8 @@ Constraint checkTransposeReshapeChangeable(op0 : Op);
 Rewrite changeTransposeReshape(op0 : Op, op1 : Op, op2 : Op);
 Rewrite removeRedundantReshape(op0 : Op, op1 : Op);
 Rewrite buildMHAOp(op0
-                   : Op, op1
-                   : Op, op2
+                   : Op, value
+                   : Attr, op2
                    : Value, op3
                    : Op, op4
                    : Op, op5
@@ -83,6 +84,7 @@ Pattern {
 
   let qkBMM = op<hom.matmul>(transposeQ, transposeK);
   let scale = op<tosa.const>;
+  isSingleFloatConstant(scale);
   let shift = attr<"0 : i8">;
 
   let calMHA = op<hom.matmul>(
@@ -95,7 +97,8 @@ Pattern {
                                                 : HOM_RankedTensor >));
 
   rewrite mha with {
-    replace mha with buildMHAOp(reshapeQ, scale, mask, q, k, v);
+    let scaleAttr = getSingleFloatValue(scale);
+    replace mha with buildMHAOp(reshapeQ, scaleAttr, mask, q, k, v);
   };
 }
 

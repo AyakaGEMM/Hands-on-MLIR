@@ -98,12 +98,14 @@ struct ConvertHOMNVGPUMatmulOp
 
       if (returnType.getElementType().isF32()) {
         allocFn = lookupOrCreateAlloc3DMemRefNVGPUF32Fn(moduleOp);
+      } else if (returnType.getElementType().isF16()) {
+        allocFn = lookupOrCreateAlloc3DMemRefNVGPUF16Fn(moduleOp);
       } else {
         llvm_unreachable("Not good.");
       }
 
-      // Stupid Static Shape Inference Here. Should convert to dynamic shape if
-      // I have time.
+      // To-do: Stupid Static Shape Inference Here. Should convert to dynamic
+      // shape if I have time.
       auto A = rewriter.create<arith::ConstantIntOp>(
           loc, returnType.getShape()[0], 32);
       auto B = rewriter.create<arith::ConstantIntOp>(
@@ -116,7 +118,15 @@ struct ConvertHOMNVGPUMatmulOp
       auto allocCaller =
           rewriter.create<func::CallOp>(loc, allocFn, allocOperands);
 
-      auto funcOp = lookupOrCreateGemmNVGPUF32Fn(moduleOp);
+      func::FuncOp funcOp;
+
+      if (returnType.getElementType().isF32()) {
+        funcOp = lookupOrCreateGemmNVGPUF32Fn(moduleOp);
+      } else if (returnType.getElementType().isF16()) {
+        funcOp = lookupOrCreateGemmNVGPUF16Fn(moduleOp);
+      } else {
+        llvm_unreachable("Not good.");
+      }
 
       auto alpha = rewriter.create<arith::ConstantFloatOp>(
           loc, op.getAlpha(), rewriter.getF32Type());
@@ -152,8 +162,17 @@ struct ConvertHOMConstantOp : public OpConversionPattern<hom::ConstantOp> {
                   ConversionPatternRewriter &rewriter) const override {
     auto loc = op->getLoc();
     auto moduleOp = op->getParentOfType<ModuleOp>();
+    auto returnType = op.getOutput().getType();
 
-    auto allocFn = lookupOrCreateAllocConstantNVGPUF32Fn(moduleOp);
+    func::FuncOp allocFn;
+
+    if (returnType.getElementType().isF32()) {
+      allocFn = lookupOrCreateAllocConstantNVGPUF32Fn(moduleOp);
+    } else if (returnType.getElementType().isF16()) {
+      allocFn = lookupOrCreateAllocConstantNVGPUF16Fn(moduleOp);
+    } else {
+      llvm_unreachable("Not good.");
+    }
 
     auto idx = rewriter.create<arith::ConstantIntOp>(
         loc, op.getIdxAttr().getInt(), 32);
@@ -192,7 +211,15 @@ struct ConvertHOMNVGPULayernormOp
       llvm_unreachable("Not ok.");
     }
 
-    auto lnFn = lookupOrCreateLayernormNVGPUF32Fn(moduleOp);
+    func::FuncOp lnFn;
+
+    if (elementType.isF32()) {
+      lnFn = lookupOrCreateLayernormNVGPUF32Fn(moduleOp);
+    } else if (elementType.isF16()) {
+      lnFn = lookupOrCreateLayernormNVGPUF16Fn(moduleOp);
+    } else {
+      llvm_unreachable("Not ok");
+    }
 
     auto eps = rewriter.create<arith::ConstantFloatOp>(loc, op.getEps(),
                                                        rewriter.getF32Type());
@@ -207,6 +234,82 @@ struct ConvertHOMNVGPULayernormOp
     rewriter.eraseOp(op);
 
     lnCaller->getOperand(0).setType(UnrankedMemRefType::get(elementType, 0));
+
+    return success();
+  }
+};
+
+struct ConvertHOMNVGPUBertMhaOp
+    : public OpConversionPattern<homnvgpu::BertMhaOp> {
+  using OpConversionPattern<homnvgpu::BertMhaOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(homnvgpu::BertMhaOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto loc = op->getLoc();
+    auto moduleOp = op->getParentOfType<ModuleOp>();
+    auto returnType = op.getOutput().getType();
+
+    Type elementType;
+
+    if (auto tensorTy = dyn_cast<TensorType>(op->getResult(0).getType())) {
+      elementType = tensorTy.getElementType();
+    } else if (auto memrefTy =
+                   dyn_cast<MemRefType>(op->getResult(0).getType())) {
+      elementType = memrefTy.getElementType();
+    } else {
+      llvm_unreachable("Not ok.");
+    }
+
+    func::FuncOp attnFn;
+
+    if (elementType.isF32()) {
+      attnFn = lookupOrCreateBertAttentionNVGPUF32Fn(moduleOp);
+    } else if (elementType.isF16()) {
+      attnFn = lookupOrCreateBertAttentionNVGPUF16Fn(moduleOp);
+    } else {
+      llvm_unreachable("Not ok");
+    }
+
+    func::FuncOp allocFn;
+
+    if (returnType.getElementType().isF32()) {
+      allocFn = lookupOrCreateAlloc3DMemRefNVGPUF32Fn(moduleOp);
+    } else if (returnType.getElementType().isF16()) {
+      allocFn = lookupOrCreateAlloc3DMemRefNVGPUF16Fn(moduleOp);
+    } else {
+      llvm_unreachable("Not good.");
+    }
+
+    // To-do: Stupid Static Shape Inference Here. Should convert to dynamic
+    // shape if I have time.
+    auto A = rewriter.create<arith::ConstantIntOp>(
+        loc, returnType.getShape()[0], 32);
+    auto B = rewriter.create<arith::ConstantIntOp>(
+        loc, returnType.getShape()[1], 32);
+    auto C = rewriter.create<arith::ConstantIntOp>(
+        loc, returnType.getShape()[2], 32);
+
+    SmallVector<Value> allocOperands = {A.getResult(), B.getResult(),
+                                        C.getResult()};
+    auto allocCaller =
+        rewriter.create<func::CallOp>(loc, allocFn, allocOperands);
+
+    auto scale = rewriter.create<arith::ConstantFloatOp>(loc, op.getScale(),
+                                                         rewriter.getF32Type());
+    auto headNum = rewriter.create<arith::ConstantIntOp>(loc, op.getHeadNum(),
+                                                         rewriter.getI64Type());
+
+    SmallVector<Value> operands = {op.getOperand(0), op.getOperand(1),
+                                   allocCaller.getResult(0),
+                                   scale->getResult(0), headNum.getResult()};
+    auto attnCaller = rewriter.create<func::CallOp>(loc, attnFn, operands);
+
+    while (!op.use_empty()) {
+      op->getUses().begin()->set(attnCaller.getOperand(2));
+    }
+
+    rewriter.eraseOp(op);
 
     return success();
   }
@@ -241,7 +344,7 @@ void HOMNVGPUToFuncPass::runOnOperation() {
   });
 
   convPatterns.add<ConvertHOMNVGPUMatmulOp, ConvertHOMConstantOp,
-                   ConvertHOMDummyTensorOp, ConvertHOMNVGPULayernormOp>(
+                   ConvertHOMDummyTensorOp, ConvertHOMNVGPUBertMhaOp>(
       typeConverter, context);
 
   target.addLegalDialect<func::FuncDialect, arith::ArithDialect>();

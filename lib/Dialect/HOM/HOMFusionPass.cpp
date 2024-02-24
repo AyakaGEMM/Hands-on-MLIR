@@ -31,6 +31,7 @@ limitations under the License.
 #include "WeightsEngine/WeightsEngine.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Tosa/IR/TosaOps.h"
+#include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -288,15 +289,13 @@ template <typename T>
 static void doConcat(T *oldData, T *newData, ArrayRef<int64_t> oldSize,
                      ArrayRef<int64_t> workingSize, ArrayRef<int64_t> newSize,
                      size_t concatDim, size_t dim) {
-  if (dim != concatDim) {
-    assert(oldSize[dim] == newSize[dim]);
+  if (dim == oldSize.size()) {
+    newData[0] = oldData[0];
+    return;
   }
 
-  if (dim + 1 >= oldSize.size()) {
-    for (int64_t i = 0; i < oldSize[dim]; i++) {
-      newData[i] = oldData[i];
-    }
-    return;
+  if (dim != concatDim) {
+    assert(oldSize[dim] == newSize[dim]);
   }
 
   auto oldStride = std::accumulate(oldSize.begin() + dim + 1, oldSize.end(), 1,
@@ -313,13 +312,15 @@ static void doConcat(T *oldData, T *newData, ArrayRef<int64_t> oldSize,
 
 // std::tuple<hom::MatmulOp, hom::BertMhaOp>
 static Operation *buildMHAOpImpl(PatternRewriter &rewriter, Operation *reshape_,
-                                 Operation *scale_, Value mask, Operation *q_,
+                                 Attribute scale_, Value mask, Operation *q_,
                                  Operation *k_, Operation *v_) {
   auto q = dyn_cast<hom::MatmulOp>(q_);
   auto k = dyn_cast<hom::MatmulOp>(k_);
   auto v = dyn_cast<hom::MatmulOp>(v_);
   auto reshape = dyn_cast<tosa::ReshapeOp>(reshape_);
-  auto scale = dyn_cast<tosa::ConstOp>(scale_);
+  auto scale = dyn_cast<FloatAttr>(scale_);
+
+  auto transposeShape = reshape.getNewShape();
 
   auto qWeight = dyn_cast<tosa::ConstOp>(q.getOperand1().getDefiningOp());
   auto kWeight = dyn_cast<tosa::ConstOp>(k.getOperand1().getDefiningOp());
@@ -374,8 +375,8 @@ static Operation *buildMHAOpImpl(PatternRewriter &rewriter, Operation *reshape_,
       q.getOperand0(), constOp.getOutput());
 
   return rewriter.create<hom::BertMhaOp>(
-      scale->getLoc(), reshape.getInput1().getType(), matmulOp.getOutput(),
-      mask, scale.getResult());
+      matmulOp->getLoc(), reshape.getInput1().getType(), matmulOp.getOutput(),
+      mask, scale.getValue(), transposeShape[3]);
 }
 
 struct HOMReinterprateTosaShape : public OpRewritePattern<tosa::ReshapeOp> {

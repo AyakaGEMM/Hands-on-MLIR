@@ -5,6 +5,7 @@
 #include "NVGPUKernels/Utils.h"
 #include "cutlass/cutlass.h"
 #include "cutlass/gemm/gemm_enumerated_types.h"
+#include "transformer_engine/transformer_engine.h"
 #include <cassert>
 #include <cstdint>
 
@@ -461,5 +462,24 @@ public:
     return Status::kSuccess;
   }
 };
+
+template <typename T> class GemmNVTERunner : public OperationRunner {
+
+  using TensorWrapper = transformer_engine::TensorWrapper;
+
+  std::tuple<TensorWrapper>
+  construct_tensors(int64_t rankA, void *dstA, int64_t rankB, void *dstB,
+                    int64_t rankC, void *dstC, int64_t rankD, void *dstD,
+                    int64_t activation, float alpha, float beta) {}
+
+public:
+  Status run(int64_t rankA, void *dstA, int64_t rankB, void *dstB,
+             int64_t rankC, void *dstC, int64_t rankD, void *dstD, float alpha,
+             float beta) {
+
+    return cutlass::Status::kSuccess;
+  }
+};
+
 } // namespace hands_on_mlir
 } // namespace mlir

@@ -176,8 +176,9 @@ def HOM_BertMhaOp : HOM_Op<"bert_mha", []> {
 
   let arguments = (ins HOM_Tensor
                    : $qkv, HOM_Tensor
-                   : $mask, HOM_Tensor
-                   : $scale);
+                   : $mask, F32Attr
+                   : $scale, I64Attr
+                   : $head_num);
 
   let results = (outs HOM_Tensor : $output);
 }
@@ -186,7 +187,7 @@ def HOM_DummyTensorOp : HOM_Op<"dummy_tensor", []> {
   let results = (outs HOM_RankedTensor : $output);
 }
 
-def HOM_GenMaskOp : HOM_Op<"mask", []> {
+def HOM_MaskOp : HOM_Op<"mask", []> {
   let arguments = (ins HOM_RankedTensor
                    : $input, DenseI64ArrayAttr
                    : $new_shape, F32Attr

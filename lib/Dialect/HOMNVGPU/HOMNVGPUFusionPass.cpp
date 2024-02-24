@@ -78,6 +78,32 @@ static void generateGemmLnGemmImpl(PatternRewriter &rewriter, Operation *gemm0_,
   gemm1.replaceAllUsesWith(LnGemm.getResult());
 }
 
+static void updateMaskWithCuSeqLenImpl(PatternRewriter &rewriter,
+                                       Operation *mask_, Operation *bert_mha_) {
+
+  auto mask = dyn_cast<hom::MaskOp>(mask_);
+  auto bert_mha = dyn_cast<homnvgpu::BertMhaOp>(bert_mha_);
+
+  homnvgpu::CuSeqLenOp newMask;
+
+  mask->getBlock()->walk([&](homnvgpu::CuSeqLenOp op) {
+    if (op.getInput() == mask.getInput()) {
+      newMask = op;
+    }
+  });
+
+  if (!newMask) {
+    auto shape = mask.getType().getShape();
+    rewriter.setInsertionPointToStart(mask->getBlock());
+    newMask = rewriter.create<homnvgpu::CuSeqLenOp>(
+        mask->getLoc(),
+        RankedTensorType::get({shape[0] + 1}, rewriter.getI32Type()),
+        mask.getInput());
+  }
+
+  bert_mha->setOperand(1, newMask.getOutput());
+}
+
 struct HOMNVGPUFusionPass : impl::HOMNVGPUFusionPassBase<HOMNVGPUFusionPass> {
   void runOnOperation() final;
 
@@ -93,6 +119,8 @@ LogicalResult HOMNVGPUFusionPass::initialize(MLIRContext *ctx) {
   populateGeneratedPDLLPatterns(patternList);
   patternList.getPDLPatterns().registerRewriteFunction("generateGemmLnGemm",
                                                        generateGemmLnGemmImpl);
+  patternList.getPDLPatterns().registerRewriteFunction(
+      "updateMaskWithCuSeqLen", updateMaskWithCuSeqLenImpl);
   patterns = std::move(patternList);
   return success();
 }

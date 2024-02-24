@@ -59,10 +59,8 @@ template <typename T>
 void doSliceFolding(const T *oldData, T *newData, ArrayRef<int64_t> start,
                     ArrayRef<int64_t> size, ArrayRef<int64_t> dataSize,
                     size_t dim) {
-  if (dim + 1 >= dataSize.size()) {
-    for (int64_t i = 0; i < size[dim]; i++) {
-      newData[i] = oldData[i + start[dim]];
-    }
+  if (dim == dataSize.size()) {
+    newData[0] = oldData[0];
     return;
   }
   auto oldStride = std::accumulate(dataSize.begin() + dim + 1, dataSize.end(),

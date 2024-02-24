@@ -4,8 +4,11 @@
 #include "cutlass/half.h"
 #include "half.h"
 #include "transformer_engine/transformer_engine.h"
+#include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cublas.h>
+#include <memory>
 
 using Status = cutlass::Status;
 
@@ -108,3 +111,32 @@ template <> struct NVTEWrapperDTypeMap<cutlass::half_t> {
   static transformer_engine::DType const kType =
       transformer_engine::DType::kFloat16;
 };
+
+template <typename T> static std::shared_ptr<T> getZeroPointer(size_t size) {
+  static std::shared_ptr<T> ptr;
+  static size_t allocedSize = 0;
+
+  if (allocedSize < size) {
+    T *allocPtr;
+    allocedSize = size;
+    checkCudaErrors(cudaMalloc(&allocPtr, sizeof(T) * allocedSize));
+    checkCudaErrors(cudaMemset(allocPtr, 0, sizeof(T) * allocedSize));
+    ptr.reset(allocPtr, cudaFree);
+  }
+
+  return ptr;
+}
+
+template <typename T> static std::shared_ptr<T> getDummyPointer(size_t size) {
+  static std::shared_ptr<T> ptr;
+  static size_t allocedSize = 0;
+
+  if (allocedSize < size) {
+    T *allocPtr;
+    allocedSize = size;
+    checkCudaErrors(cudaMalloc(&allocPtr, sizeof(T) * allocedSize));
+    ptr.reset(allocPtr, cudaFree);
+  }
+
+  return ptr;
+}
