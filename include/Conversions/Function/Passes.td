@@ -7,7 +7,8 @@ def HOMToFuncPass : Pass<"hom-to-func", "mlir::func::FuncOp"> {
 
 def HOMNVGPUToFuncPass : Pass<"homnvgpu-to-func", "mlir::func::FuncOp"> {
   let summary = "Lowering HOMNVGPU to Func";
-  let dependentDialects = ["::mlir::func::FuncDialect"];
+  let dependentDialects =
+      ["::mlir::func::FuncDialect", "::mlir::arith::ArithDialect"];
 }
 
 def ExtractInitFuncPass : Pass<"extract-init-func", "mlir::ModuleOp"> {

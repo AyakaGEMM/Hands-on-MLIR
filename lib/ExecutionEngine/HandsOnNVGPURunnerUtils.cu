@@ -1,6 +1,7 @@
 #include "ExecutionEngine/HandsOnNVGPURunnerUtils.h"
 #include "ExecutionEngine/HandsOnRunnerUtils.h"
 #include "NVGPUKernels/BertAttentionRunner.h"
+#include "NVGPUKernels/CuSeqLen.h"
 #include "NVGPUKernels/GemmRunner.h"
 #include "NVGPUKernels/Layernorm.h"
 #include "NVGPUKernels/Utils.h"
@@ -22,16 +23,25 @@
 #include "llvm/Support/ErrorHandling.h"
 #include <cassert>
 #include <complex.h>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
 #include <cuda_runtime_api.h>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iostream>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <vector>
+
+static auto nvgpuAllocer = [](void **ptr, size_t size) {
+  checkCudaErrors(cudaMalloc(ptr, size));
+  std::cout << "Allocate 3d tensor on cuda: " << *ptr << std::endl;
+  std::cout << "Size: " << size << std::endl;
+};
 
 extern "C" {
 
@@ -182,6 +192,11 @@ C_UnrankedMemRefType allocConstantNVGPUF32(int32_t idx) {
   return haha;
 }
 
+void thrustCuSeqLen(int64_t rankA, void *dstA, int64_t rankOut, void *dstOut) {
+  mlir::hands_on_mlir::CuSeqLenRunner maskRunner;
+  maskRunner.run(rankA, dstA, rankOut, dstOut);
+}
+
 void nvteLayernormF32(int64_t rankA, void *dstA, float eps) {
   mlir::hands_on_mlir::LayernormRunner<float> lnRunner;
   lnRunner.run(rankA, dstA, eps);
@@ -209,27 +224,20 @@ void nvteBertAttentionF16(int64_t rankA, void *dstA, int64_t rankSeqlen,
 }
 
 C_UnrankedMemRefType alloc3DMemRefNVGPUF32(int32_t a, int32_t b, int32_t c) {
-  auto returnMemRef = C_UnrankedMemRefType();
-  returnMemRef.rank = 3;
-  returnMemRef.descriptor = malloc(sizeof(StridedMemRefType<float, 3>));
-  auto des =
-      static_cast<StridedMemRefType<float, 3> *>(returnMemRef.descriptor);
-  checkCudaErrors(cudaMalloc(&(des->data), sizeof(float) * a * b * c));
-  std::cout << "Allocate 3d tensor on cuda: " << des->data << std::endl;
-  std::cout << "Size: " << a << " " << b << " " << c << std::endl;
-  des->basePtr = des->data;
-  des->offset = 0;
-  des->sizes[0] = a;
-  des->sizes[1] = b;
-  des->sizes[2] = c;
-  des->strides[0] = b * c;
-  des->strides[1] = c;
-  des->strides[2] = 1;
-  return returnMemRef;
+  return allocHelper<float, 3>({a, b, c}, nvgpuAllocer);
+}
+
+C_UnrankedMemRefType alloc1DMemRefNVGPUI32(int32_t a) {
+  return allocHelper<int32_t, 1>({a}, nvgpuAllocer);
 }
 
 void deallocNVGPUF32(int64_t rank, void *dst) {
   auto memRef = convertToDynamicMemRefType(rank, dst);
+  cudaFree(memRef.data);
+}
+
+void deallocNVGPUI32(int64_t rank, void *dst) {
+  auto memRef = convertToDynamicMemRefType<int32_t>(rank, dst);
   cudaFree(memRef.data);
 }
 }

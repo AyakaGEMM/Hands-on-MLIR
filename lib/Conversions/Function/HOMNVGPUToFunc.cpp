@@ -239,6 +239,44 @@ struct ConvertHOMNVGPULayernormOp
   }
 };
 
+struct ConvertHOMNVGPUCuSeqLenOp
+    : public OpConversionPattern<homnvgpu::CuSeqLenOp> {
+  using OpConversionPattern<homnvgpu::CuSeqLenOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(homnvgpu::CuSeqLenOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto loc = op->getLoc();
+    auto moduleOp = op->getParentOfType<ModuleOp>();
+    auto returnType = op.getOutput().getType();
+
+    auto allocFn = lookupOrCreateAlloc1DMemRefNVGPUI32Fn(moduleOp);
+
+    auto cuSeqLenFn = lookupOrCreateCuSeqLenNVGPUI32Fn(moduleOp);
+
+    // To-do: Stupid Static Shape Inference Here. Should convert to dynamic
+    // shape if I have time.
+    auto A = rewriter.create<arith::ConstantIntOp>(
+        loc, returnType.getShape()[0], 32);
+
+    SmallVector<Value> allocOperands = {A.getResult()};
+    auto allocCaller =
+        rewriter.create<func::CallOp>(loc, allocFn, allocOperands);
+
+    SmallVector<Value> operands = {op.getOperand(), allocCaller->getResult(0)};
+    auto cuSeqLenCaller =
+        rewriter.create<func::CallOp>(loc, cuSeqLenFn, operands);
+
+    while (!op.use_empty()) {
+      op->getUses().begin()->set(cuSeqLenCaller.getOperand(1));
+    }
+
+    rewriter.eraseOp(op);
+
+    return success();
+  }
+};
+
 struct ConvertHOMNVGPUBertMhaOp
     : public OpConversionPattern<homnvgpu::BertMhaOp> {
   using OpConversionPattern<homnvgpu::BertMhaOp>::OpConversionPattern;
@@ -344,8 +382,8 @@ void HOMNVGPUToFuncPass::runOnOperation() {
   });
 
   convPatterns.add<ConvertHOMNVGPUMatmulOp, ConvertHOMConstantOp,
-                   ConvertHOMDummyTensorOp, ConvertHOMNVGPUBertMhaOp>(
-      typeConverter, context);
+                   ConvertHOMDummyTensorOp, ConvertHOMNVGPUBertMhaOp,
+                   ConvertHOMNVGPUCuSeqLenOp>(typeConverter, context);
 
   target.addLegalDialect<func::FuncDialect, arith::ArithDialect>();
   target.addIllegalDialect<hom::HOMDialect, homnvgpu::HOMNVGPUDialect>();

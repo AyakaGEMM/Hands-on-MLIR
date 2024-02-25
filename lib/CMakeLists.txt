@@ -41,5 +41,6 @@ if(ENABLE_CUDA)
   add_mlir_library(
     hands_on_mlir_nvgpu_runner_utils SHARED
     ExecutionEngine/HandsOnNVGPURunnerUtils.cu LINK_LIBS WeightsEngine)
+  target_compile_options(hands_on_mlir_nvgpu_runner_utils PRIVATE -fexceptions)
   # add_subdirectory(NVGPUKernels)
 endif()

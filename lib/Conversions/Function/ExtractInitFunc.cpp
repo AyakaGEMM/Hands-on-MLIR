@@ -144,6 +144,34 @@ struct ExtractPattern : public OpRewritePattern<func::FuncOp> {
         } else {
           llvm_unreachable("Dummy tensor should not be used in anyway.");
         }
+      } else if (callOp.getCallee().equals(kAlloc1DMemRefNVGPUI32)) {
+        alloc2remove.emplace_back(callOp);
+
+        SmallVector<Value> operands;
+        auto idxOp = dyn_cast<arith::ConstantIntOp>(
+            callOp->getOperand(0).getDefiningOp());
+        if (!idxOp) {
+          llvm_unreachable("Not Good.");
+        }
+        auto initIdxOp = initFnBuilder.create<arith::ConstantIntOp>(
+            initFn.getLoc(), idxOp.value(), 32);
+        operands.emplace_back(initIdxOp);
+
+        auto initCallOp = initFnBuilder.create<func::CallOp>(
+            initFn.getLoc(), callOp.getCallee(), callOp->getResultTypes(),
+            operands);
+        initAllocValues.emplace_back(initCallOp->getResult(0));
+        initAllocTypes.emplace_back(
+            std::make_pair(initCallOp->getResult(0).getType(),
+                           callOp.getCallee().contains("NVGPU")));
+
+        for (auto user : callOp->getUsers()) {
+          if (auto dealloc = dyn_cast<func::CallOp>(user)) {
+            if (dealloc.getCallee().contains("dealloc")) {
+              dealloc2remove.emplace_back(dealloc);
+            }
+          }
+        }
       }
     });
 
@@ -177,10 +205,25 @@ struct ExtractPattern : public OpRewritePattern<func::FuncOp> {
       if (!memrefTy) {
         llvm_unreachable("Not Good.");
       }
+
       if (memrefTy.getElementType().isF32()) {
         auto internalDeallocFn = type.second
                                      ? lookupOrCreateDeallocNVGPUF32Fn(moduleOp)
                                      : lookupOrCreateDeallocF32Fn(moduleOp);
+        deallocFnbuilder.create<func::CallOp>(
+            deallocFn.getLoc(), internalDeallocFn,
+            ValueRange{deallocFn.getArgument(idx)});
+      } else if (memrefTy.getElementType().isF16()) {
+        auto internalDeallocFn = type.second
+                                     ? lookupOrCreateDeallocNVGPUF16Fn(moduleOp)
+                                     : lookupOrCreateDeallocF16Fn(moduleOp);
+        deallocFnbuilder.create<func::CallOp>(
+            deallocFn.getLoc(), internalDeallocFn,
+            ValueRange{deallocFn.getArgument(idx)});
+      } else if (memrefTy.getElementType().isInteger(32)) {
+        auto internalDeallocFn = type.second
+                                     ? lookupOrCreateDeallocNVGPUI32Fn(moduleOp)
+                                     : lookupOrCreateDeallocI32Fn(moduleOp);
         deallocFnbuilder.create<func::CallOp>(
             deallocFn.getLoc(), internalDeallocFn,
             ValueRange{deallocFn.getArgument(idx)});

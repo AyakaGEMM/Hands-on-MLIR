@@ -2,7 +2,10 @@
 #define HANDS_ON_MLIR_EXECUTIONENGINE_RUNNERUTILS_H
 
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
+#include <cstddef>
 #include <cstdint>
+#include <iostream>
+#include <numeric>
 #ifdef _WIN32 // Copied from official mlir project
 #ifndef HANDS_ON_MLIR_RUNNERUTILS_EXPORT
 #ifdef mlir_runner_utils_EXPORTS
@@ -25,6 +28,41 @@ auto convertToDynamicMemRefType(int64_t rank, void *dst) {
   UnrankedMemRefType<T> unrankType = {rank, dst};
   DynamicMemRefType<T> dyType(unrankType);
   return dyType;
+}
+
+typedef void (*allocFnType)(void **, size_t);
+
+static auto defaultAllocer = [](void **ptr, size_t size) {
+  auto &realPtr = *ptr;
+  realPtr = nullptr;
+};
+
+template <typename ElementType, int32_t rank>
+static C_UnrankedMemRefType
+allocHelper(const std::vector<int64_t> &sizes,
+            allocFnType customAllocer = defaultAllocer) {
+  auto returnMemRef = C_UnrankedMemRefType();
+  returnMemRef.rank = rank;
+  returnMemRef.descriptor =
+      malloc(sizeof(StridedMemRefType<ElementType, rank>));
+  auto des = static_cast<StridedMemRefType<ElementType, rank> *>(
+      returnMemRef.descriptor);
+
+  auto totalSize =
+      std::accumulate(sizes.begin(), sizes.end(), 1, std::multiplies<>());
+
+  customAllocer(reinterpret_cast<void **>(&(des->data)),
+                sizeof(ElementType) * totalSize);
+
+  des->basePtr = des->data;
+  des->offset = 0;
+  int64_t strides = 1;
+  for (int i = 0; i < rank; i++) {
+    des->sizes[i] = sizes[i];
+    des->strides[rank - i - 1] = strides;
+    strides *= sizes[rank - i - 1];
+  }
+  return returnMemRef;
 }
 
 extern "C" {

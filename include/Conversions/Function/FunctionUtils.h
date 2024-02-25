@@ -25,6 +25,7 @@ namespace hands_on_mlir {
 constexpr llvm::StringRef kAllocF32 = "allocF32";
 constexpr llvm::StringRef kAllocDummyTensorF32 = "allocDummyTensorF32";
 constexpr llvm::StringRef kAlloc3DMemRefF32 = "alloc3DMemRefF32";
+constexpr llvm::StringRef kAlloc1DMemRefNVGPUI32 = "alloc1DMemRefNVGPUI32";
 constexpr llvm::StringRef kAlloc3DMemRefNVGPUF32 = "alloc3DMemRefNVGPUF32";
 constexpr llvm::StringRef kAlloc3DMemRefNVGPUF16 = "alloc3DMemRefNVGPUF16";
 constexpr llvm::StringRef kAllocByMemRefF32 = "allocByMemRefF32";
@@ -34,7 +35,11 @@ constexpr llvm::StringRef kAllocConstantNVGPUF32 = "allocConstantNVGPUF32";
 constexpr llvm::StringRef kAllocConstantNVGPUF16 = "allocConstantNVGPUF16";
 constexpr llvm::StringRef kArgNum = "_argNum";
 constexpr llvm::StringRef kDeallocF32 = "deallocF32";
+constexpr llvm::StringRef kDeallocF16 = "deallocF16";
+constexpr llvm::StringRef kDeallocI32 = "deallocI32";
 constexpr llvm::StringRef kDeallocNVGPUF32 = "deallocNVGPUF32";
+constexpr llvm::StringRef kDeallocNVGPUF16 = "deallocNVGPUF16";
+constexpr llvm::StringRef kDeallocNVGPUI32 = "deallocNVGPUI32";
 constexpr llvm::StringRef kDealloc = "_deallocFn";
 constexpr llvm::StringRef kInit = "_initFn";
 constexpr llvm::StringRef kMatmulAddF32 = "matmulAddF32";
@@ -45,6 +50,7 @@ constexpr llvm::StringRef kLayernormNVGPUF32 = "nvteLayernormF32";
 constexpr llvm::StringRef kLayernormNVGPUF16 = "nvteLayernormF16";
 constexpr llvm::StringRef kBertAttentionNVGPUF32 = "nvteBertAttentionF32";
 constexpr llvm::StringRef kBertAttentionNVGPUF16 = "nvteBertAttentionF16";
+constexpr llvm::StringRef kCuSeqLenNVGPU = "thrustCuSeqLen";
 
 func::FuncOp lookupOrCreateFn(ModuleOp moduleOp, StringRef name,
                               ArrayRef<Type> paramTypes,
@@ -76,6 +82,14 @@ func::FuncOp lookupOrCreateAlloc3DMemRefNVGPUF16Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateLayernormNVGPUF16Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateBertAttentionNVGPUF16Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateGemmNVGPUF16Fn(ModuleOp moduleOp);
+func::FuncOp lookupOrCreateDeallocF16Fn(ModuleOp moduleOp);
+func::FuncOp lookupOrCreateDeallocNVGPUF16Fn(ModuleOp moduleOp);
+
+// I32
+func::FuncOp lookupOrCreateAlloc1DMemRefNVGPUI32Fn(ModuleOp moduleOp);
+func::FuncOp lookupOrCreateCuSeqLenNVGPUI32Fn(ModuleOp moduleOp);
+func::FuncOp lookupOrCreateDeallocI32Fn(ModuleOp moduleOp);
+func::FuncOp lookupOrCreateDeallocNVGPUI32Fn(ModuleOp moduleOp);
 
 class HOMFuncTypeConverter : public TypeConverter {
 public:

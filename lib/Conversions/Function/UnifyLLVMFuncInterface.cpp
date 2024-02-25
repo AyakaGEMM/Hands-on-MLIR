@@ -98,7 +98,7 @@ struct UnifyFuncWithBody : public OpRewritePattern<LLVM::LLVMFuncOp> {
 
     {
       // Rewrite from llvm-project/mlir/lib/ExecutionEngine/ExecutionEngine.cpp
-      auto bb = unifiedFunc.addEntryBlock();
+      auto bb = unifiedFunc.addEntryBlock(rewriter);
       OpBuilder::InsertionGuard g(rewriter);
       rewriter.setInsertionPoint(bb, bb->begin());
       auto loc = unifiedFunc->getLoc();

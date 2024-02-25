@@ -55,13 +55,20 @@ nvteBertAttentionF16(int64_t rankA, void *dstA, int64_t rankSeqlen,
                      void *dstSeqlen, int64_t rankOut, void *dstOut,
                      float scale, int64_t headNum);
 
+HANDS_ON_MLIR_RUNNERUTILS_EXPORT void
+thrustCuSeqLen(int64_t rankA, void *dstA, int64_t rankOut, void *dstOut);
+
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT C_UnrankedMemRefType
 allocConstantNVGPUF32(int32_t idx);
 
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT
 C_UnrankedMemRefType alloc3DMemRefNVGPUF32(int32_t, int32_t, int32_t);
 
+HANDS_ON_MLIR_RUNNERUTILS_EXPORT
+C_UnrankedMemRefType alloc1DMemRefNVGPUI32(int32_t);
+
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT void deallocNVGPUF32(int64_t rank, void *dst);
+HANDS_ON_MLIR_RUNNERUTILS_EXPORT void deallocNVGPUI32(int64_t rank, void *dst);
 }
 
 #endif

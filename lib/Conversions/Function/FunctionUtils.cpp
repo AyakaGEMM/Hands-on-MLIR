@@ -151,7 +151,23 @@ func::FuncOp lookupOrCreateAlloc3DMemRefNVGPUF32Fn(ModuleOp moduleOp) {
   return lookupOrCreateFn(moduleOp, kAlloc3DMemRefNVGPUF32,
                           {IntegerType::get(ctx, 32), IntegerType::get(ctx, 32),
                            IntegerType::get(ctx, 32)},
-                          {UnrankedMemRefType::get(Float16Type::get(ctx), 0)});
+                          {UnrankedMemRefType::get(Float32Type::get(ctx), 0)});
+}
+
+func::FuncOp lookupOrCreateAlloc1DMemRefNVGPUI32Fn(ModuleOp moduleOp) {
+  auto ctx = moduleOp->getContext();
+  return lookupOrCreateFn(
+      moduleOp, kAlloc1DMemRefNVGPUI32, {IntegerType::get(ctx, 32)},
+      {UnrankedMemRefType::get(IntegerType::get(ctx, 32), 0)});
+}
+
+func::FuncOp lookupOrCreateCuSeqLenNVGPUI32Fn(ModuleOp moduleOp) {
+  auto ctx = moduleOp->getContext();
+  return lookupOrCreateFn(
+      moduleOp, kCuSeqLenNVGPU,
+      {UnrankedMemRefType::get(IntegerType::get(ctx, 32), 0),
+       UnrankedMemRefType::get(IntegerType::get(ctx, 32), 0)},
+      {});
 }
 
 func::FuncOp lookupOrCreateAlloc3DMemRefNVGPUF16Fn(ModuleOp moduleOp) {
@@ -183,11 +199,39 @@ func::FuncOp lookupOrCreateDeallocF32Fn(ModuleOp moduleOp) {
                           {});
 }
 
+func::FuncOp lookupOrCreateDeallocF16Fn(ModuleOp moduleOp) {
+  auto ctx = moduleOp->getContext();
+  return lookupOrCreateFn(moduleOp, kDeallocF16,
+                          {UnrankedMemRefType::get(Float16Type::get(ctx), 0)},
+                          {});
+}
+
+func::FuncOp lookupOrCreateDeallocI32Fn(ModuleOp moduleOp) {
+  auto ctx = moduleOp->getContext();
+  return lookupOrCreateFn(
+      moduleOp, kDeallocI32,
+      {UnrankedMemRefType::get(IntegerType::get(ctx, 32), 0)}, {});
+}
+
 func::FuncOp lookupOrCreateDeallocNVGPUF32Fn(ModuleOp moduleOp) {
   auto ctx = moduleOp->getContext();
   return lookupOrCreateFn(moduleOp, kDeallocNVGPUF32,
                           {UnrankedMemRefType::get(Float32Type::get(ctx), 0)},
                           {});
+}
+
+func::FuncOp lookupOrCreateDeallocNVGPUF16Fn(ModuleOp moduleOp) {
+  auto ctx = moduleOp->getContext();
+  return lookupOrCreateFn(moduleOp, kDeallocNVGPUF16,
+                          {UnrankedMemRefType::get(Float16Type::get(ctx), 0)},
+                          {});
+}
+
+func::FuncOp lookupOrCreateDeallocNVGPUI32Fn(ModuleOp moduleOp) {
+  auto ctx = moduleOp->getContext();
+  return lookupOrCreateFn(
+      moduleOp, kDeallocNVGPUI32,
+      {UnrankedMemRefType::get(IntegerType::get(ctx, 32), 0)}, {});
 }
 
 func::FuncOp lookupOrCreateInitFn(ModuleOp moduleOp, StringRef prefix) {
