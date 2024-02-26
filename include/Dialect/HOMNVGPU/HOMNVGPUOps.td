@@ -38,7 +38,7 @@ def HOMNVGPU_MatmulOp : HOMNVGPU_Op<"matmul", []> {
                    : $operand2, F32Attr
                    : $alpha, F32Attr
                    : $beta, I32Attr
-                   : $act);
+                   : $act, DefaultValuedAttr<BoolAttr, "false"> : $transa, DefaultValuedAttr<BoolAttr, "false"> : $transb);
 
   let results = (outs HOM_RankedTensor : $output);
 }

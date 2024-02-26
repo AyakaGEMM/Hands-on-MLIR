@@ -28,6 +28,7 @@ limitations under the License.
 #include "WeightsEngine/WeightsEngine.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Tosa/IR/TosaOps.h"
+#include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -40,6 +41,7 @@ limitations under the License.
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -104,6 +106,38 @@ static void updateMaskWithCuSeqLenImpl(PatternRewriter &rewriter,
   bert_mha->setOperand(1, newMask.getOutput());
 }
 
+static void generateTransposeImpl(PatternRewriter &rewriter,
+                                  Operation *matmul_) {
+  auto matmul = dyn_cast<homnvgpu::MatmulOp>(matmul_);
+
+  if (auto constOp =
+          dyn_cast<tosa::ConstOp>(matmul->getOperand(1).getDefiningOp())) {
+
+    auto oldType = constOp.getResult().getType();
+    auto oldShape = oldType.getShape();
+
+    assert(oldShape.size() == 3);
+
+    SmallVector<int64_t> newShape = {oldShape[0], oldShape[2], oldShape[1]};
+
+    auto permAttr = DenseIntElementsAttr::get(
+        RankedTensorType::get({3}, rewriter.getI32Type()),
+        ArrayRef<int32_t>{0, 2, 1});
+
+    auto perm = rewriter.create<tosa::ConstOp>(constOp->getLoc(),
+                                               permAttr.getType(), permAttr);
+    auto transposeOp = rewriter.create<tosa::TransposeOp>(
+        constOp->getLoc(),
+        RankedTensorType::get(newShape, oldType.getElementType()),
+        constOp.getResult(), perm.getResult());
+
+    matmul->setOperand(1, transposeOp.getResult());
+    matmul.setTransb(true);
+  } else {
+    llvm_unreachable("Does not support this format.");
+  }
+}
+
 struct HOMNVGPUFusionPass : impl::HOMNVGPUFusionPassBase<HOMNVGPUFusionPass> {
   void runOnOperation() final;
 
@@ -121,6 +155,8 @@ LogicalResult HOMNVGPUFusionPass::initialize(MLIRContext *ctx) {
                                                        generateGemmLnGemmImpl);
   patternList.getPDLPatterns().registerRewriteFunction(
       "updateMaskWithCuSeqLen", updateMaskWithCuSeqLenImpl);
+  patternList.getPDLPatterns().registerRewriteFunction("generateTranspose",
+                                                       generateTransposeImpl);
   patterns = std::move(patternList);
   return success();
 }

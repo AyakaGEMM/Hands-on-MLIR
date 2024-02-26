@@ -6,6 +6,7 @@ WIP. Heavily developing in progress currently, so no document available. Should 
 
 + ~~Integrate cutlass~~
 + ~~Integrate transformer engine~~
++ ~~Integrate thrust~~
 + End-to-end huggingface bert model support (On-going)
 + Autotuning cutlass (If I have enough time)
 

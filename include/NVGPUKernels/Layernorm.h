@@ -608,6 +608,7 @@ template <typename ElementType> class LayernormRunner : public OperationRunner {
     cudaDeviceProp prop;
     checkCudaErrors(cudaGetDevice(&device_id));
     cudaGetDeviceProperties(&prop, device_id);
+    mpCount = prop.multiProcessorCount;
 
     nvte_layernorm1p_fwd(
         input_tensor.data(), gamma_tensor.data(), beta_tensor.data(), eps,

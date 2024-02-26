@@ -37,7 +37,7 @@
 #include <string>
 #include <vector>
 
-static auto nvgpuAllocer = [](void **ptr, size_t size) {
+allocFnType nvgpuAllocer = [](void **ptr, size_t size) {
   checkCudaErrors(cudaMalloc(ptr, size));
   std::cout << "Allocate 3d tensor on cuda: " << *ptr << std::endl;
   std::cout << "Size: " << size << std::endl;
@@ -45,9 +45,10 @@ static auto nvgpuAllocer = [](void **ptr, size_t size) {
 
 extern "C" {
 
-void cutlassGemmF32(int64_t rankA, void *dstA, int64_t rankB, void *dstB,
-                    int64_t rankC, void *dstC, int64_t rankD, void *dstD,
-                    float alpha, float beta) {
+void cutlassGemmF32(int64_t rankA, void *dstA, bool transa, int64_t rankB,
+                    void *dstB, bool transb, int64_t rankC, void *dstC,
+                    int64_t rankD, void *dstD, int64_t activation, float alpha,
+                    float beta) {
 
   // Ideally, we should use manifest with generated template here.
   using RowMajor = cutlass::layout::RowMajor;
@@ -69,9 +70,10 @@ void cutlassGemmF32(int64_t rankA, void *dstA, int64_t rankB, void *dstB,
   assert(status == cutlass::Status::kSuccess);
 }
 
-void cutlassGemmF16(int64_t rankA, void *dstA, int64_t rankB, void *dstB,
-                    int64_t rankC, void *dstC, int64_t rankD, void *dstD,
-                    float alpha, float beta) {
+void cutlassGemmF16(int64_t rankA, void *dstA, bool transa, int64_t rankB,
+                    void *dstB, bool transb, int64_t rankC, void *dstC,
+                    int64_t rankD, void *dstD, int64_t activation, float alpha,
+                    float beta) {
 
   // Ideally, we should use manifest with generated template here.
   using RowMajor = cutlass::layout::RowMajor;
@@ -146,6 +148,18 @@ void cutlassGemmWithVarMeanF16(int64_t rankA, void *dstA, int64_t rankB,
   assert(status == cutlass::Status::kSuccess);
 }
 
+void nvteGemmF16(int64_t rankA, void *dstA, bool transa, int64_t rankB,
+                 void *dstB, bool transb, int64_t rankC, void *dstC,
+                 int64_t rankD, void *dstD, int64_t activation, float alpha,
+                 float beta) {
+  mlir::hands_on_mlir::GemmNVTERunner<half> gemm;
+
+  auto status = gemm.run(rankA, dstA, transa, rankB, dstB, transb, rankC, dstC,
+                         rankD, dstD, activation, alpha, beta);
+
+  assert(status == cutlass::Status::kSuccess);
+}
+
 void cutlassLayernormGemmF32(int64_t rankA, void *dstA, int64_t rankB,
                              void *dstB, int64_t rankC, void *dstC,
                              int64_t rankD, void *dstD, int64_t rankVar,
@@ -154,42 +168,73 @@ void cutlassLayernormGemmF32(int64_t rankA, void *dstA, int64_t rankB,
                              int64_t activation) {}
 
 C_UnrankedMemRefType allocConstantNVGPUF32(int32_t idx) {
-  auto haha = C_UnrankedMemRefType();
-  // So stupid...
+
   std::ifstream file(std::filesystem::path(__FILE__).parent_path().string() +
                      std::string("/../../examples/torch/linear/") +
                      std::to_string(idx) + ".txt");
-  std::vector<int> v;
-  int a;
+
+  std::vector<int64_t> v;
+  int64_t a;
   std::string line;
   getline(file, line);
   std::stringstream ss(line);
   while (ss >> a) {
     v.push_back(a);
   }
-  haha.rank = v.size();
-  assert(haha.rank == 3);
-  haha.descriptor = malloc(
-      sizeof(StridedMemRefType<float, 3>)); // MLIR will delete this ptr for us.
-  auto des = static_cast<StridedMemRefType<float, 3> *>(haha.descriptor);
-  int32_t stride = 1;
-  for (size_t i = 0; i < v.size(); i++) {
-    des->sizes[i] = v[i];
-    des->strides[2 - i] = stride;
-    stride *= v[2 - i];
+
+  assert(v.size() == 3);
+
+  auto res = allocHelper<float, 3>(v, nvgpuAllocer);
+  auto des = static_cast<StridedMemRefType<float, 3> *>(res.descriptor);
+  auto totalSize = std::accumulate(v.begin(), v.end(), 1, std::multiplies<>());
+  auto host_data = new float[totalSize];
+  float tmp;
+  for (int i = 0; i < totalSize; i++) {
+    file >> tmp;
+    host_data[i] = tmp;
   }
-  checkCudaErrors(cudaMalloc(&(des->data), sizeof(float) * stride));
-  std::cout << "Allocate const on cuda: " << des->data << std::endl;
-  float *host_data = new float[stride];
-  for (int i = 0; i < stride; i++) {
-    file >> host_data[i];
-  }
-  checkCudaErrors(cudaMemcpy(des->data, host_data, sizeof(float) * stride,
+
+  std::cout << totalSize << " " << des->data << std::endl;
+
+  checkCudaErrors(cudaMemcpy(des->data, host_data, sizeof(float) * totalSize,
                              cudaMemcpyHostToDevice));
-  des->basePtr = des->data;
-  des->offset = 0;
   delete[] host_data;
-  return haha;
+  return res;
+}
+
+C_UnrankedMemRefType allocConstantNVGPUF16(int32_t idx) {
+
+  std::ifstream file(std::filesystem::path(__FILE__).parent_path().string() +
+                     std::string("/../../examples/torch/linear/") +
+                     std::to_string(idx) + ".txt");
+
+  std::vector<int64_t> v;
+  int64_t a;
+  std::string line;
+  getline(file, line);
+  std::stringstream ss(line);
+  while (ss >> a) {
+    v.push_back(a);
+  }
+
+  assert(v.size() == 3);
+
+  auto res = allocHelper<half, 3>(v, nvgpuAllocer);
+  auto des = static_cast<StridedMemRefType<half, 3> *>(res.descriptor);
+  auto totalSize = std::accumulate(v.begin(), v.end(), 1, std::multiplies<>());
+  auto host_data = new half[totalSize];
+  float tmp;
+  for (int i = 0; i < totalSize; i++) {
+    file >> tmp;
+    host_data[i] = tmp;
+  }
+
+  std::cout << totalSize << " " << des->data << std::endl;
+
+  checkCudaErrors(cudaMemcpy(des->data, host_data, sizeof(half) * totalSize,
+                             cudaMemcpyHostToDevice));
+  delete[] host_data;
+  return res;
 }
 
 void thrustCuSeqLen(int64_t rankA, void *dstA, int64_t rankOut, void *dstOut) {
@@ -227,12 +272,21 @@ C_UnrankedMemRefType alloc3DMemRefNVGPUF32(int32_t a, int32_t b, int32_t c) {
   return allocHelper<float, 3>({a, b, c}, nvgpuAllocer);
 }
 
+C_UnrankedMemRefType alloc3DMemRefNVGPUF16(int32_t a, int32_t b, int32_t c) {
+  return allocHelper<half, 3>({a, b, c}, nvgpuAllocer);
+}
+
 C_UnrankedMemRefType alloc1DMemRefNVGPUI32(int32_t a) {
   return allocHelper<int32_t, 1>({a}, nvgpuAllocer);
 }
 
 void deallocNVGPUF32(int64_t rank, void *dst) {
   auto memRef = convertToDynamicMemRefType(rank, dst);
+  cudaFree(memRef.data);
+}
+
+void deallocNVGPUF16(int64_t rank, void *dst) {
+  auto memRef = convertToDynamicMemRefType<half>(rank, dst);
   cudaFree(memRef.data);
 }
 

@@ -1,13 +1,19 @@
 #pragma once
 
+#include "ExecutionEngine/HandsOnRunnerUtils.h"
 #include "NVGPUKernels/Layernorm.h"
 #include "NVGPUKernels/OperationRunner.h"
 #include "NVGPUKernels/Utils.h"
 #include "cutlass/cutlass.h"
 #include "cutlass/gemm/gemm_enumerated_types.h"
+#include "mlir/IR/BuiltinTypes.h"
+#include "transformer_engine/gemm.h"
 #include "transformer_engine/transformer_engine.h"
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
+#include <numeric>
+#include <vector>
 
 namespace mlir {
 namespace hands_on_mlir {
@@ -463,21 +469,112 @@ public:
   }
 };
 
-template <typename T> class GemmNVTERunner : public OperationRunner {
+template <typename ElementType> class GemmNVTERunner : public OperationRunner {
 
   using TensorWrapper = transformer_engine::TensorWrapper;
 
-  std::tuple<TensorWrapper>
-  construct_tensors(int64_t rankA, void *dstA, int64_t rankB, void *dstB,
-                    int64_t rankC, void *dstC, int64_t rankD, void *dstD,
-                    int64_t activation, float alpha, float beta) {}
+  std::tuple<TensorWrapper, TensorWrapper, TensorWrapper, TensorWrapper,
+             TensorWrapper, TensorWrapper, bool>
+  construct_tensors(int64_t rankA, void *dstA, bool transa, int64_t rankB,
+                    void *dstB, bool transb, int64_t rankC, void *dstC,
+                    int64_t rankD, void *dstD, int64_t activation, float alpha,
+                    float beta) {
+
+    auto A = convertToDynamicMemRefType(rankA, dstA);
+    auto B = convertToDynamicMemRefType(rankB, dstB);
+    auto C = convertToDynamicMemRefType(rankC, dstC);
+    auto D = convertToDynamicMemRefType(rankD, dstD);
+
+    assert(A.rank == 3);
+    assert(B.rank == 3);
+    assert(C.rank == 3);
+    assert(D.rank == 3);
+    assert(transa == false);
+    assert(transb == true);
+
+    auto DimCompatibale = [](int64_t a, int64_t b) {
+      return a == b || a == 1 || b == 1;
+    };
+
+    assert(A.sizes[1] == C.sizes[1]);
+    assert(B.sizes[1] == C.sizes[2]);
+    assert(A.sizes[2] == B.sizes[2]);
+
+    size_t M = std::max(A.sizes[1], C.sizes[1]);
+    size_t N = std::max(B.sizes[1], C.sizes[2]);
+    size_t K = A.sizes[2];
+    auto BatchSize = A.sizes[0];
+
+    assert(B.sizes[0] == 1);
+    assert(BatchSize == C.sizes[0]);
+    assert(BatchSize == D.sizes[0]);
+    assert(C.sizes[0] == D.sizes[0]);
+    assert(C.sizes[1] == D.sizes[1]);
+    assert(C.sizes[2] == D.sizes[2]);
+
+    assert(alpha == 1);
+
+    std::vector<size_t> a_shape = {M * BatchSize, K};
+    std::vector<size_t> b_shape = {N, K};
+    std::vector<size_t> c_shape = {M, N};
+
+    TensorWrapper a(A.data, a_shape, NVTEWrapperDTypeMap<ElementType>::kType);
+    TensorWrapper b(B.data, b_shape, NVTEWrapperDTypeMap<ElementType>::kType);
+    TensorWrapper c(D.data, c_shape, NVTEWrapperDTypeMap<ElementType>::kType);
+
+    bool accumulate = false;
+
+    if (beta != 0) {
+      assert(beta == 1);
+      assert(C.data == D.data);
+      accumulate = true;
+    }
+
+    // Magic number here. Transformer engine uses 4MB for all architecture
+    // except for Hopper.
+    auto workspace_buffer = getDummyPointer(4 * 1024 * 1024);
+    auto pre_gelu_buffer =
+        activation == 1 ? getDummyPointer<ElementType>(M * N) : nullptr;
+
+    TensorWrapper workspace(workspace_buffer.get(), {4 * 1024 * 1024},
+                            NVTEWrapperDTypeMap<char>::kType);
+    TensorWrapper bias(nullptr, std::vector<size_t>{0},
+                       NVTEWrapperDTypeMap<ElementType>::kType);
+    TensorWrapper pre_gelu(pre_gelu_buffer.get(),
+                           {activation == 1 ? M * N * sizeof(ElementType) : 0},
+                           NVTEWrapperDTypeMap<ElementType>::kType);
+
+    return {std::move(a),    std::move(b),        std::move(c),
+            std::move(bias), std::move(pre_gelu), std::move(workspace),
+            accumulate};
+  }
 
 public:
-  Status run(int64_t rankA, void *dstA, int64_t rankB, void *dstB,
-             int64_t rankC, void *dstC, int64_t rankD, void *dstD, float alpha,
-             float beta) {
+  Status run(int64_t rankA, void *dstA, bool transa, int64_t rankB, void *dstB,
+             bool transb, int64_t rankC, void *dstC, int64_t rankD, void *dstD,
+             int64_t activation, float alpha, float beta) {
 
-    return cutlass::Status::kSuccess;
+    auto [a, b, c, bias, pre_gelu, workspace, accumulate] =
+        construct_tensors(rankA, dstA, transa, rankB, dstB, transb, rankC, dstC,
+                          rankD, dstD, activation, alpha, beta);
+
+    int device_id;
+    cudaDeviceProp prop;
+    checkCudaErrors(cudaGetDevice(&device_id));
+    cudaGetDeviceProperties(&prop, device_id);
+    auto mpCount = prop.multiProcessorCount;
+
+    nvte_cublas_gemm(b.data(), a.data(), c.data(), bias.data(), pre_gelu.data(),
+                     transb, transa, false, workspace.data(), accumulate, false,
+                     mpCount, nullptr);
+
+    auto error = cudaGetLastError();
+
+    if (error != cudaSuccess) {
+      return Status::kErrorInternal;
+    }
+
+    return Status::kSuccess;
   }
 };
 

@@ -84,7 +84,8 @@ struct ExtractPattern : public OpRewritePattern<func::FuncOp> {
 
     op->walk([&](func::CallOp callOp) {
       if (callOp.getCallee().equals(kAllocConstantF32) ||
-          callOp.getCallee().equals(kAllocConstantNVGPUF32)) {
+          callOp.getCallee().equals(kAllocConstantNVGPUF32) ||
+          callOp.getCallee().equals(kAllocConstantNVGPUF16)) {
         alloc2remove.emplace_back(callOp);
         auto idxOp = dyn_cast<arith::ConstantIntOp>(
             callOp->getOperand(0).getDefiningOp());
@@ -108,7 +109,8 @@ struct ExtractPattern : public OpRewritePattern<func::FuncOp> {
             std::make_pair(initCallOp->getResult(0).getType(),
                            callOp.getCallee().contains("NVGPU")));
       } else if (callOp.getCallee().equals(kAlloc3DMemRefF32) ||
-                 callOp.getCallee().equals(kAlloc3DMemRefNVGPUF32)) {
+                 callOp.getCallee().equals(kAlloc3DMemRefNVGPUF32) ||
+                 callOp.getCallee().equals(kAlloc3DMemRefNVGPUF16)) {
         alloc2remove.emplace_back(callOp);
 
         SmallVector<Value> operands;

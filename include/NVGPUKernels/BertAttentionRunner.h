@@ -22,12 +22,28 @@ class BertAttentionRunner : public OperationRunner {
                     const std::vector<size_t> &qkv_shape,
                     const std::vector<size_t> &bias_shape,
                     const std::vector<size_t> &output_shape, size_t head_num,
-                    float scale, TensorWrapper &workspace) {
+                    float scale, TensorWrapper &workspace,
+                    NVTETensorPack &aux_output_tensors) {
+    for (auto i : qkv_shape)
+      std::cout << i << " ";
+    std::cout << std::endl;
+
+    for (auto i : bias_shape)
+      std::cout << i << " ";
+    std::cout << std::endl;
+
+    for (auto i : output_shape)
+      std::cout << i << " ";
+    std::cout << std::endl;
+
+    std::cout << scale << std::endl;
+    std::cout << head_num << std::endl;
+
     TensorWrapper qkv(nullptr, qkv_shape,
                       NVTEWrapperDTypeMap<ElementType>::kType);
     TensorWrapper bias(nullptr, bias_shape,
                        NVTEWrapperDTypeMap<ElementType>::kType);
-    TensorWrapper cu_seqlen(nullptr, std::vector<size_t>(bs + 1),
+    TensorWrapper cu_seqlen(nullptr, std::vector<size_t>{bs + 1},
                             NVTEWrapperDTypeMap<int32_t>::kType);
     TensorWrapper s(nullptr, std::vector<size_t>{1},
                     NVTEWrapperDTypeMap<ElementType>::kType);
@@ -36,10 +52,9 @@ class BertAttentionRunner : public OperationRunner {
     TensorWrapper rng_state(nullptr, std::vector<size_t>{2},
                             NVTEWrapperDTypeMap<int64_t>::kType);
 
-    NVTETensorPack aux_output_tensors;
     nvte_tensor_pack_create(&aux_output_tensors);
 
-    assert(workspace.data() == nullptr);
+    assert(workspace.dptr() == nullptr);
 
     nvte_fused_attn_fwd_qkvpacked(
         qkv.data(), bias.data(), s.data(), output.data(), &aux_output_tensors,
@@ -47,31 +62,38 @@ class BertAttentionRunner : public OperationRunner {
         NVTE_BS3HD, NVTE_Bias_Type::NVTE_NO_BIAS,
         NVTE_Mask_Type::NVTE_PADDING_MASK, workspace.data(), nullptr);
 
-    nvte_tensor_pack_destroy(&aux_output_tensors);
+    std::cout << "Ok" << std::endl;
   }
 
   std::tuple<TensorWrapper, TensorWrapper, TensorWrapper, TensorWrapper,
              TensorWrapper, size_t, TensorWrapper, TensorWrapper>
   construct_tensors(int64_t rankA, void *dstA, int64_t rankSeqlen,
                     void *dstSeqlen, int64_t rankOut, void *dstOut, float scale,
-                    size_t head_num) {
+                    size_t head_num, NVTETensorPack &aux_output_tensors) {
     auto A = convertToDynamicMemRefType<ElementType>(rankA, dstA);
     auto SeqLen = convertToDynamicMemRefType<int32_t>(rankSeqlen, dstSeqlen);
     auto Out = convertToDynamicMemRefType<ElementType>(rankOut, dstOut);
 
     assert(A.rank == 3);
-    assert(A.sizes[2] % head_num == 0);
+    assert(A.sizes[2] % (head_num * 3) == 0);
 
     assert(Out.rank == 3);
     assert(Out.sizes[0] == A.sizes[0]);
     assert(Out.sizes[1] == A.sizes[1]);
-    assert(Out.sizes[2] * 3 == A.sizes[1]);
+    assert(Out.sizes[2] * 3 == A.sizes[2]);
 
     size_t bs = A.sizes[0], seq_len = A.sizes[1],
-           head_size = A.sizes[2] / head_num;
+           head_size = A.sizes[2] / head_num / 3;
 
     assert(SeqLen.rank == 1);
     assert(SeqLen.sizes[0] == bs + 1);
+
+    std::cout << "Args: " << bs << " " << seq_len << " " << head_num << " "
+              << head_size << " "
+              << int(NVTEWrapperDTypeMap<ElementType>::kType) << " "
+              << (NVTEWrapperDTypeMap<ElementType>::kType ==
+                  transformer_engine::DType::kFloat16)
+              << std::endl;
 
     std::vector<size_t> qkv_shape = {bs * seq_len, 3, head_num, head_size};
 
@@ -81,7 +103,7 @@ class BertAttentionRunner : public OperationRunner {
     TensorWrapper workspace;
 
     getWorkSpace(bs, seq_len, qkv_shape, bias_shape, output_shape, head_num,
-                 scale, workspace);
+                 scale, workspace, aux_output_tensors);
 
     TensorWrapper qkv(A.data, qkv_shape,
                       NVTEWrapperDTypeMap<ElementType>::kType);
@@ -98,6 +120,15 @@ class BertAttentionRunner : public OperationRunner {
         NVTEWrapperDTypeMap<int64_t>::kType); // Not used for inference. This
                                               // state is for dropout.
 
+    auto workspace_buffer = getDummyPointer(workspace.shape().data[0]);
+    workspace = TensorWrapper(workspace_buffer.get(), workspace.shape(),
+                              workspace.dtype());
+
+    for (size_t i = 0; i < aux_output_tensors.size; i++) {
+    }
+
+    std::cout << "Aux size: " << aux_output_tensors.size << std::endl;
+
     return {std::move(qkv),       std::move(bias),     std::move(cu_seqlen),
             std::move(s),         std::move(output),   seq_len,
             std::move(rng_state), std::move(workspace)};
@@ -107,12 +138,10 @@ public:
   Status run(int64_t rankA, void *dstA, int64_t rankSeqlen, void *dstSeqlen,
              int64_t rankOut, void *dstOut, float scale, int64_t headNum) {
 
-    auto [qkv, bias, s, output, cu_seqlen, seq_len, rng_state, workspace] =
-        construct_tensors(rankA, dstA, rankSeqlen, dstSeqlen, rankOut, dstOut,
-                          scale, headNum);
-
     NVTETensorPack aux_output_tensors;
-    nvte_tensor_pack_create(&aux_output_tensors);
+    auto [qkv, bias, cu_seqlen, s, output, seq_len, rng_state, workspace] =
+        construct_tensors(rankA, dstA, rankSeqlen, dstSeqlen, rankOut, dstOut,
+                          scale, headNum, aux_output_tensors);
 
     nvte_fused_attn_fwd_qkvpacked(
         qkv.data(), bias.data(), s.data(), output.data(), &aux_output_tensors,

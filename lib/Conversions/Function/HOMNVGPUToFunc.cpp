@@ -132,16 +132,28 @@ struct ConvertHOMNVGPUMatmulOp
           loc, op.getAlpha(), rewriter.getF32Type());
       auto beta = rewriter.create<arith::ConstantFloatOp>(
           loc, op.getBeta(), rewriter.getF32Type());
+      auto act = rewriter.create<arith::ConstantIntOp>(loc, op.getAct(),
+                                                       rewriter.getI64Type());
 
+      auto transA = rewriter.create<arith::ConstantIntOp>(loc, op.getTransa(),
+                                                          rewriter.getI1Type());
+      auto transB = rewriter.create<arith::ConstantIntOp>(loc, op.getTransb(),
+                                                          rewriter.getI1Type());
       Value c = op->getOperand(2);
 
       if (op.getBeta().convertToFloat() == 0) {
         c = allocCaller.getResult(0);
       }
 
-      SmallVector<Value> operands = {
-          op.getOperand(0),         op.getOperand(1),  c,
-          allocCaller.getResult(0), alpha.getResult(), beta.getResult()};
+      SmallVector<Value> operands = {op.getOperand(0),
+                                     transA.getResult(),
+                                     op.getOperand(1),
+                                     transB.getResult(),
+                                     c,
+                                     allocCaller.getResult(0),
+                                     act.getResult(),
+                                     alpha.getResult(),
+                                     beta.getResult()};
       rewriter.create<func::CallOp>(op.getLoc(), funcOp, operands);
       while (!op->getUses().empty()) {
         op->getUses().begin()->set(allocCaller->getResult(0));

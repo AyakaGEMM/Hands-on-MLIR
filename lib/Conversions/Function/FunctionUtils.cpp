@@ -76,10 +76,13 @@ func::FuncOp lookupOrCreateGemmNVGPUF32Fn(ModuleOp moduleOp) {
   auto ctx = moduleOp->getContext();
   return lookupOrCreateFn(moduleOp, kGemmNVGPUF32,
                           {UnrankedMemRefType::get(Float32Type::get(ctx), 0),
+                           IntegerType::get(ctx, 1),
+                           UnrankedMemRefType::get(Float32Type::get(ctx), 0),
+                           IntegerType::get(ctx, 1),
                            UnrankedMemRefType::get(Float32Type::get(ctx), 0),
                            UnrankedMemRefType::get(Float32Type::get(ctx), 0),
-                           UnrankedMemRefType::get(Float32Type::get(ctx), 0),
-                           Float32Type::get(ctx), Float32Type::get(ctx)},
+                           IntegerType::get(ctx, 64), Float32Type::get(ctx),
+                           Float32Type::get(ctx)},
                           {});
 }
 
@@ -87,10 +90,13 @@ func::FuncOp lookupOrCreateGemmNVGPUF16Fn(ModuleOp moduleOp) {
   auto ctx = moduleOp->getContext();
   return lookupOrCreateFn(moduleOp, kGemmNVGPUF16,
                           {UnrankedMemRefType::get(Float16Type::get(ctx), 0),
+                           IntegerType::get(ctx, 1),
+                           UnrankedMemRefType::get(Float16Type::get(ctx), 0),
+                           IntegerType::get(ctx, 1),
                            UnrankedMemRefType::get(Float16Type::get(ctx), 0),
                            UnrankedMemRefType::get(Float16Type::get(ctx), 0),
-                           UnrankedMemRefType::get(Float16Type::get(ctx), 0),
-                           Float32Type::get(ctx), Float32Type::get(ctx)},
+                           IntegerType::get(ctx, 64), Float32Type::get(ctx),
+                           Float32Type::get(ctx)},
                           {});
 }
 

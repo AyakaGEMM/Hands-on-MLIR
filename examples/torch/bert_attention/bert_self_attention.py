@@ -6,8 +6,8 @@ from transformers.models.bert.modeling_bert import BertSelfAttention
 torch.manual_seed(42)
 
 encoded_input_list = [
-    torch.rand((1, 16, 4)),
-    torch.zeros((1, 16), dtype=torch.int32),
+    torch.rand((1, 64, 128)),
+    torch.zeros((1, 64), dtype=torch.int32),
 ]
 
 
@@ -16,7 +16,7 @@ class BertAttentionWrapper(torch.nn.Module):
         super().__init__()
         config = BertConfig().from_pretrained("bert-base-uncased")
         config.num_hidden_layers = 2
-        config.hidden_size = 4
+        config.hidden_size = 128
         config.num_attention_heads = 2
         self.attn = BertSelfAttention(config)
         self.attn.query.bias.data.zero_()

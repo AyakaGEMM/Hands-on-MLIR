@@ -3,12 +3,20 @@
 #include "mlir/Dialect/Tosa/IR/TosaOps.td"
 
 Constraint hasOneUse(op : Op)[{ return success(op->hasOneUse()); }];
+Constraint isF16(op
+                 : Op)[{
+  if (auto tp = dyn_cast<TensorType>(op->getResult(0).getType())) {
+    return success(tp.getElementType().isF16());
+  }
+  return failure();
+}];
 
 // I have to add a rewrite pattern here rather than pdll rewrite statements. Or
 // it will emit error. Idk why. Error message: `runtime error: member access
 // within null pointer of type 'mlir::IRObjectWithUseList<mlir::OpOperand>'`
 Rewrite generateGemmLnGemm(op0 : Op, op1 : Op, op2 : Op);
 Rewrite updateMaskWithCuSeqLen(op0 : Op, op1 : Op);
+Rewrite generateTranspose(op0 : Op);
 
 Pattern {
   let matmul0 = op<homnvgpu.matmul>(
@@ -32,4 +40,16 @@ Pattern {
   let attn = op<homnvgpu.bert_mha>(input0 : Value, mask);
 
   rewrite attn with { updateMaskWithCuSeqLen(mask, attn); };
+}
+
+Pattern {
+  let transa = attr<"0 : i1">;
+  let transb = attr<"0 : i1">;
+  let matmul = op<homnvgpu.matmul>(input0
+                                   : Value, input1
+                                   : Value, input2
+                                   : Value){transa = transa, transb = transb};
+  isF16(matmul);
+
+  rewrite matmul with { generateTranspose(matmul); };
 }

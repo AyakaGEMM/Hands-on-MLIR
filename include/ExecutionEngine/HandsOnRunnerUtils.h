@@ -21,7 +21,18 @@
 #define HANDS_ON_MLIR_RUNNERUTILS_EXPORT __attribute__((visibility("default")))
 #endif // _WIN32
 
-struct C_UnrankedMemRefType : UnrankedMemRefType<float> {};
+// Need this type for extern C functions since these functions cannot return
+// template type. However, a normal type with template member function is
+// allowed.
+struct C_UnrankedMemRefType : public UnrankedMemRefType<float> {
+  C_UnrankedMemRefType() = default;
+
+  template <typename T>
+  C_UnrankedMemRefType(const UnrankedMemRefType<T> &memref) {
+    this->rank = memref.rank;
+    this->descriptor = memref.descriptor;
+  }
+};
 
 template <class T = float>
 auto convertToDynamicMemRefType(int64_t rank, void *dst) {
@@ -32,16 +43,10 @@ auto convertToDynamicMemRefType(int64_t rank, void *dst) {
 
 typedef void (*allocFnType)(void **, size_t);
 
-static auto defaultAllocer = [](void **ptr, size_t size) {
-  auto &realPtr = *ptr;
-  realPtr = nullptr;
-};
-
-template <typename ElementType, int32_t rank>
-static C_UnrankedMemRefType
-allocHelper(const std::vector<int64_t> &sizes,
-            allocFnType customAllocer = defaultAllocer) {
-  auto returnMemRef = C_UnrankedMemRefType();
+template <typename ElementType, int32_t rank, typename MemRefType = float>
+static UnrankedMemRefType<MemRefType>
+allocHelper(const std::vector<int64_t> &sizes, allocFnType customAllocer) {
+  auto returnMemRef = UnrankedMemRefType<MemRefType>();
   returnMemRef.rank = rank;
   returnMemRef.descriptor =
       malloc(sizeof(StridedMemRefType<ElementType, rank>));
@@ -91,4 +96,5 @@ HANDS_ON_MLIR_RUNNERUTILS_EXPORT void matmulAddF32(int64_t, void *, int64_t,
                                                    void *, int64_t, void *,
                                                    int64_t, void *);
 }
+
 #endif

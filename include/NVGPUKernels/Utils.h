@@ -4,6 +4,7 @@
 #include "cutlass/half.h"
 #include "half.h"
 #include "transformer_engine/transformer_engine.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -97,6 +98,11 @@ template <> struct NVTEWrapperDTypeMap<int32_t> {
       transformer_engine::DType::kInt32;
 };
 
+template <> struct NVTEWrapperDTypeMap<char> {
+  static transformer_engine::DType const kType =
+      transformer_engine::DType::kByte;
+};
+
 template <> struct NVTEWrapperDTypeMap<float> {
   static transformer_engine::DType const kType =
       transformer_engine::DType::kFloat32;
@@ -111,6 +117,32 @@ template <> struct NVTEWrapperDTypeMap<cutlass::half_t> {
   static transformer_engine::DType const kType =
       transformer_engine::DType::kFloat16;
 };
+
+inline size_t getNVTEWrapperDTypeSize(transformer_engine::DType dtype) {
+  using DType = transformer_engine::DType;
+  switch (dtype) {
+  case DType::kInt64:
+    return sizeof(int64_t);
+    break;
+  case DType::kInt32:
+  case DType::kFloat32:
+    return sizeof(int32_t);
+    break;
+  case DType::kFloat16:
+  case DType::kBFloat16:
+    return sizeof(int16_t);
+    break;
+  case DType::kFloat8E4M3:
+  case DType::kFloat8E5M2:
+    return sizeof(int8_t);
+    break;
+  case DType::kByte:
+    return sizeof(char);
+    break;
+  default:
+    llvm_unreachable("Not ok");
+  }
+}
 
 template <typename T> static std::shared_ptr<T> getZeroPointer(size_t size) {
   static std::shared_ptr<T> ptr;
@@ -127,7 +159,8 @@ template <typename T> static std::shared_ptr<T> getZeroPointer(size_t size) {
   return ptr;
 }
 
-template <typename T> static std::shared_ptr<T> getDummyPointer(size_t size) {
+template <typename T = char>
+static std::shared_ptr<T> getDummyPointer(size_t size) {
   static std::shared_ptr<T> ptr;
   static size_t allocedSize = 0;
 
