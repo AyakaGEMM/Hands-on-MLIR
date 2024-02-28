@@ -49,7 +49,9 @@ int main() {
                              cudaMemcpyHostToDevice));
 
   int32_t mask_data[seq_len];
-  memset(mask_data, 0, sizeof(mask_data));
+  for (auto &i : mask_data) {
+    i = 1;
+  }
   checkCudaErrors(cudaMemcpy(mask_des->data, mask_data, sizeof(mask_data),
                              cudaMemcpyHostToDevice));
 

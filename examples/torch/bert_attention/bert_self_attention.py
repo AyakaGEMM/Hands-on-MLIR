@@ -7,7 +7,7 @@ torch.manual_seed(42)
 
 encoded_input_list = [
     torch.rand((1, 64, 128)),
-    torch.zeros((1, 64), dtype=torch.int32),
+    torch.ones((1, 64), dtype=torch.int32),
 ]
 
 
@@ -29,7 +29,7 @@ class BertAttentionWrapper(torch.nn.Module):
         mask = mask[:, None, None, :]
         mask = mask.to(torch.float32)
         mask = (1.0 - mask) * torch.finfo(torch.float32).min
-        return self.ln(self.linear(self.attn(hidden, mask)[0]) + hidden)
+        return self.attn(hidden, mask)[0]
 
 
 model = BertAttentionWrapper()

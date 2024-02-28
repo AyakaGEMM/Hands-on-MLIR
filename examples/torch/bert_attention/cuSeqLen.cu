@@ -1,4 +1,5 @@
 #include "ExecutionEngine/ExecutionEngine.h"
+#include "ExecutionEngine/HandsOnNVGPURunnerUtils.h"
 #include "ExecutionEngine/HandsOnRunnerUtils.h"
 #include "NVGPUKernels/Utils.h"
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
@@ -15,28 +16,26 @@ struct Res {
 #define RowMajor(A, des, i) ((A)[(i) * (des).strides[0]])
 
 int main() {
-  C_UnrankedMemRefType a;
 
-  a.rank = 2;
-  a.descriptor = malloc(sizeof(StridedMemRefType<int32_t, 2>));
+  constexpr int64_t bs = 1;
+  constexpr int64_t seq_len = 64;
+
+  auto a = allocHelper<int32_t, 2, int32_t>({bs, seq_len}, nvgpuAllocer);
+
   auto des = static_cast<StridedMemRefType<int32_t, 2> *>(a.descriptor);
-  auto host_ptr = new int32_t[16 * 3];
-  checkCudaErrors(cudaMalloc(&(des->data), sizeof(int32_t) * 16 * 3));
-  std::cout << des->data << std::endl;
-  des->basePtr = des->data;
-  des->sizes[0] = 3;
-  des->sizes[1] = 16;
-  des->strides[0] = 16;
-  des->strides[1] = 1;
-  int32_t data[] = {3, 16, 12};
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 16; j++) {
-      host_ptr[i * 16 + j] = 1 - (j < data[i]);
-      std::cout << host_ptr[i * 16 + j] << " ";
+
+  auto host_ptr = new int32_t[seq_len * bs];
+  checkCudaErrors(cudaMalloc(&(des->data), sizeof(int32_t) * bs * seq_len));
+
+  int32_t data[] = {64};
+  for (int i = 0; i < bs; i++) {
+    for (int j = 0; j < seq_len; j++) {
+      host_ptr[i * seq_len + j] = j < data[i];
+      std::cout << host_ptr[i * seq_len + j] << " ";
     }
     std::cout << std::endl;
   }
-  cudaMemcpy(des->data, host_ptr, sizeof(int32_t) * 16 * 3,
+  cudaMemcpy(des->data, host_ptr, sizeof(int32_t) * seq_len * bs,
              cudaMemcpyHostToDevice);
 
   Res b;

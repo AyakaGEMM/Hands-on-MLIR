@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-../../../build/bin/hands-on-opt --tosa-to-hom-pipeline --hom-fusion --hom-serialize-weight  --hom-to-homnvgpu --homnvgpu-to-func --extract-init-func -convert-func-to-llvm -finalize-memref-to-llvm -convert-arith-to-llvm -unify-llvm-func-interface  hom.mlir |\
+../../../build/bin/hands-on-opt --tosa-to-hom-pipeline --hom-fusion --hom-serialize-weight  --hom-to-homnvgpu --homnvgpu-to-func --extract-init-func -convert-func-to-llvm -finalize-memref-to-llvm -convert-arith-to-llvm -unify-llvm-func-interface  cu_seqlen.mlir |\
 ../../../thirdparty/llvm-project/build/bin/mlir-translate --mlir-to-llvmir |\
 ../../../thirdparty/llvm-project/build/bin/llc > cuseqlen_nvgpu.s
 

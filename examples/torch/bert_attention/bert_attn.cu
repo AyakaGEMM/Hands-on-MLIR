@@ -20,7 +20,7 @@
 
 int main() {
   constexpr int64_t seq_len = 64;
-  constexpr int64_t hidden_size = 128;
+  constexpr int64_t hidden_size = 768;
   auto hidden_state =
       allocHelper<half, 3, half>({1, seq_len, hidden_size}, nvgpuAllocer);
   auto mask = allocHelper<int32_t, 2>({1, seq_len}, nvgpuAllocer);
@@ -45,7 +45,9 @@ int main() {
                              cudaMemcpyHostToDevice));
 
   int32_t mask_data[seq_len];
-  memset(mask_data, 0, sizeof(mask_data));
+  for (auto &i : mask_data) {
+    i = 1;
+  }
   checkCudaErrors(cudaMemcpy(mask_des->data, mask_data, sizeof(mask_data),
                              cudaMemcpyHostToDevice));
 

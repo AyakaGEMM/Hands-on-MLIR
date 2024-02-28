@@ -50,10 +50,7 @@ public:
       auto outPtr =
           thrust::device_pointer_cast(Out.data + (i + 1) * Out.strides[0]);
 
-      auto inIter =
-          thrust::make_transform_iterator(inPtr, flip<int32_t, int32_t>());
-
-      *outPtr = thrust::reduce(inIter, inIter + In.strides[0]);
+      *outPtr = thrust::reduce(inPtr, inPtr + In.strides[0]);
     }
 
     auto outPtr = thrust::device_pointer_cast(Out.data);

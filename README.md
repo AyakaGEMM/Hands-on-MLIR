@@ -8,6 +8,13 @@ WIP. Heavily developing in progress currently, so no document available. Should 
 + ~~Integrate transformer engine~~
 + ~~Integrate thrust~~
 + End-to-end huggingface bert model support (On-going)
+    + Encoder Block (Done):
+        + ~~BertAttention~~
+        + ~~Linear~~
+        + ~~Layernorm~~
+    + Embedding:
+        + Gather: Implemented, but not verfied.
+        + Add: Implemented, but not verfied.
 + Autotuning cutlass (If I have enough time)
 
 # Pre-requirement
