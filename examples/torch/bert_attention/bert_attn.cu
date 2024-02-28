@@ -14,10 +14,6 @@
 #include <numeric>
 #include <vector>
 
-struct Res {
-  UnrankedMemRefType<int32_t> a;
-};
-
 #define RowMajor(A, des, i, j, k)                                              \
   ((A)[(i) * (des).strides[0] + (j) * (des).strides[1] +                       \
        (k) * (des).strides[2]])
@@ -54,7 +50,7 @@ int main() {
                              cudaMemcpyHostToDevice));
 
   UnrankedMemRefType<half> b;
-  mlir::hands_on_mlir::ExecutionEngine e("libbert_self_attn_nvgpu.so");
+  mlir::hands_on_mlir::ExecutionEngine e("libbert_attn_nvgpu.so");
 
   auto res = e.invoke("forward", hidden_state.rank, hidden_state.descriptor,
                       mask.rank, mask.descriptor,

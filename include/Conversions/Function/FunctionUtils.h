@@ -33,6 +33,7 @@ constexpr llvm::StringRef kAllocConstantF32 = "allocConstantF32";
 constexpr llvm::StringRef kAllocConstantF16 = "allocConstantF16";
 constexpr llvm::StringRef kAllocConstantNVGPUF32 = "allocConstantNVGPUF32";
 constexpr llvm::StringRef kAllocConstantNVGPUF16 = "allocConstantNVGPUF16";
+constexpr llvm::StringRef kAllocConstantNVGPUI32 = "allocConstantNVGPUI32";
 constexpr llvm::StringRef kArgNum = "_argNum";
 constexpr llvm::StringRef kDeallocF32 = "deallocF32";
 constexpr llvm::StringRef kDeallocF16 = "deallocF16";
@@ -50,7 +51,10 @@ constexpr llvm::StringRef kLayernormNVGPUF32 = "nvteLayernormF32";
 constexpr llvm::StringRef kLayernormNVGPUF16 = "nvteLayernormF16";
 constexpr llvm::StringRef kBertAttentionNVGPUF32 = "nvteBertAttentionF32";
 constexpr llvm::StringRef kBertAttentionNVGPUF16 = "nvteBertAttentionF16";
-constexpr llvm::StringRef kCuSeqLenNVGPU = "thrustCuSeqLen";
+constexpr llvm::StringRef kCuSeqLenNVGPUI64 = "thrustCuSeqLenI64";
+constexpr llvm::StringRef kCuSeqLenNVGPUI32 = "thrustCuSeqLenI32";
+constexpr llvm::StringRef kAddNVGPUF16 = "thrustElementwiseAddF16";
+constexpr llvm::StringRef kGatherNVGPUF16 = "thrustGatherF16";
 
 func::FuncOp lookupOrCreateFn(ModuleOp moduleOp, StringRef name,
                               ArrayRef<Type> paramTypes,
@@ -84,8 +88,14 @@ func::FuncOp lookupOrCreateBertAttentionNVGPUF16Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateGemmNVGPUF16Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateDeallocF16Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateDeallocNVGPUF16Fn(ModuleOp moduleOp);
+func::FuncOp lookupOrCreateGatherNVGPUF16Fn(ModuleOp moduleOp);
+func::FuncOp lookupOrCreateAddNVGPUF16Fn(ModuleOp moduleOp);
+
+// I64
+func::FuncOp lookupOrCreateCuSeqLenNVGPUI64Fn(ModuleOp moduleOp);
 
 // I32
+func::FuncOp lookupOrCreateAllocConstantNVGPUI32Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateAlloc1DMemRefNVGPUI32Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateCuSeqLenNVGPUI32Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateDeallocI32Fn(ModuleOp moduleOp);

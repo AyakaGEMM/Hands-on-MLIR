@@ -15,6 +15,10 @@ if(POLICY CMP0116)
   cmake_policy(SET CMP0116 OLD)
 endif()
 
+if(POLICY CMP0074)
+  cmake_policy(SET CMP0074 OLD)
+endif()
+
 # -------------------------------------------------------------------------------
 # Project setup and globals
 # -------------------------------------------------------------------------------

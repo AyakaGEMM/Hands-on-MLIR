@@ -13,6 +13,30 @@
 
 using Status = cutlass::Status;
 
+namespace transformer_engine {
+struct SimpleTensor {
+  void *dptr;
+  std::vector<size_t> shape;
+  transformer_engine::DType dtype;
+
+  SimpleTensor(void *dptr, const std::vector<size_t> &shape, DType dtype)
+      : dptr(dptr), shape(shape), dtype(dtype) {}
+  SimpleTensor() : SimpleTensor(nullptr, {}, DType::kFloat32) {}
+};
+
+struct Tensor {
+  SimpleTensor data;
+  SimpleTensor amax;
+  SimpleTensor scale;
+  SimpleTensor scale_inv;
+
+  Tensor()
+      : data(), amax(nullptr, {1}, DType::kFloat32),
+        scale(nullptr, {1}, DType::kFloat32),
+        scale_inv(nullptr, {1}, DType::kFloat32) {}
+};
+} // namespace transformer_engine
+
 #define checkCudaErrors(func)                                                  \
   {                                                                            \
     cudaError_t e = (func);                                                    \

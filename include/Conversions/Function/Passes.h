@@ -3,6 +3,7 @@
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Pass/Pass.h"
+#include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 #include "Conversions/Function/FunctionUtils.h"
@@ -15,6 +16,7 @@ namespace hands_on_mlir {
 #define GEN_PASS_DECL_HOMTOFUNCPASS
 #define GEN_PASS_DECL_HOMNVGPUTOFUNCPASS
 #define GEN_PASS_DECL_UNIFYLLVMFUNCINTERFACEPASS
+#define GEN_PASS_DECL_OPTIMIZEMEMORYPASS
 #define GEN_PASS_REGISTRATION
 #include "Conversions/Function/Passes.h.inc"
 
@@ -26,6 +28,7 @@ struct ConvertHOMDummyTensorOp
   LogicalResult
   matchAndRewrite(hom::DummyTensorOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
+
     auto loc = op->getLoc();
     auto moduleOp = op->getParentOfType<ModuleOp>();
 

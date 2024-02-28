@@ -376,7 +376,7 @@ static Operation *buildMHAOpImpl(PatternRewriter &rewriter, Operation *reshape_,
 
   return rewriter.create<hom::BertMhaOp>(
       matmulOp->getLoc(), reshape.getInput1().getType(), matmulOp.getOutput(),
-      mask, scale.getValue(), transposeShape[3]);
+      mask, scale.getValue(), transposeShape[2]);
 }
 
 struct HOMReinterprateTosaShape : public OpRewritePattern<tosa::ReshapeOp> {

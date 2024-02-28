@@ -12,13 +12,31 @@ encoded_input_list = [
     encoded_input["token_type_ids"].expand(2, -1),
 ]
 
+encoded_input_list = [
+    torch.concat(
+        [
+            i,
+            (
+                torch.zeros(2, 64 - i.shape[1], dtype=torch.int64)
+                if idx != 0
+                else torch.tensor(
+                    [[102 for k in range(64 - i.shape[1])] for j in range(2)]
+                )
+            ),
+        ],
+        dim=-1,
+    )
+    for idx, i in enumerate(encoded_input_list)
+]
+
+print([(i.shape, i.dtype) for i in encoded_input_list])
+
 
 class BertWrapper(torch.nn.Module):
     def __init__(self):
         super().__init__()
         config = BertConfig().from_pretrained("bert-base-uncased")
         config.num_hidden_layers = 2
-        config.hidden_size = 24
         self.model = BertForMaskedLM(config)
 
     def forward(self, input_ids, attention_mask, token_type_ids):
@@ -28,10 +46,23 @@ class BertWrapper(torch.nn.Module):
 model = BertWrapper()
 model.eval()
 
+output = model(*encoded_input_list)
+
 with torch.no_grad():
     module = torch_mlir.compile(
         model, encoded_input_list, output_type="TOSA", use_tracing=True
     )
     # output = model(*encoded_input_list)
+
+
+for idx in range(3):
+    with open(f"{idx}.txt", "w") as fl:
+        for i in encoded_input_list[idx].reshape(-1):
+            print(int(i), file=fl)
+
+with open("4.txt", "w") as fl:
+    for i in output.reshape(-1):
+        print(float(i), file=fl)
+
 with open("bert.mlir", "w") as fl:
     print(module, file=fl, end="")

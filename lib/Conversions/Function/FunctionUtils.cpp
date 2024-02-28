@@ -112,7 +112,26 @@ func::FuncOp lookupOrCreateLayernormNVGPUF16Fn(ModuleOp moduleOp) {
   auto ctx = moduleOp->getContext();
   return lookupOrCreateFn(moduleOp, kLayernormNVGPUF16,
                           {UnrankedMemRefType::get(Float16Type::get(ctx), 0),
-                           Float16Type::get(ctx)},
+                           Float32Type::get(ctx)},
+                          {});
+}
+
+func::FuncOp lookupOrCreateGatherNVGPUF16Fn(ModuleOp moduleOp) {
+  auto ctx = moduleOp->getContext();
+  return lookupOrCreateFn(
+      moduleOp, kGatherNVGPUF16,
+      {UnrankedMemRefType::get(IntegerType::get(ctx, 64), 0),
+       UnrankedMemRefType::get(Float16Type::get(ctx), 0),
+       UnrankedMemRefType::get(Float16Type::get(ctx), 0)},
+      {});
+}
+
+func::FuncOp lookupOrCreateAddNVGPUF16Fn(ModuleOp moduleOp) {
+  auto ctx = moduleOp->getContext();
+  return lookupOrCreateFn(moduleOp, kAddNVGPUF16,
+                          {UnrankedMemRefType::get(Float16Type::get(ctx), 0),
+                           UnrankedMemRefType::get(Float16Type::get(ctx), 0),
+                           UnrankedMemRefType::get(Float16Type::get(ctx), 0)},
                           {});
 }
 
@@ -167,10 +186,26 @@ func::FuncOp lookupOrCreateAlloc1DMemRefNVGPUI32Fn(ModuleOp moduleOp) {
       {UnrankedMemRefType::get(IntegerType::get(ctx, 32), 0)});
 }
 
+func::FuncOp lookupOrCreateAllocConstantNVGPUI32Fn(ModuleOp moduleOp) {
+  auto ctx = moduleOp.getContext();
+  return lookupOrCreateFn(
+      moduleOp, kAllocConstantNVGPUF16, {IntegerType::get(ctx, 32)},
+      {UnrankedMemRefType::get(IntegerType::get(ctx, 32), 0)});
+}
+
+func::FuncOp lookupOrCreateCuSeqLenNVGPUI64Fn(ModuleOp moduleOp) {
+  auto ctx = moduleOp->getContext();
+  return lookupOrCreateFn(
+      moduleOp, kCuSeqLenNVGPUI64,
+      {UnrankedMemRefType::get(IntegerType::get(ctx, 64), 0),
+       UnrankedMemRefType::get(IntegerType::get(ctx, 32), 0)},
+      {});
+}
+
 func::FuncOp lookupOrCreateCuSeqLenNVGPUI32Fn(ModuleOp moduleOp) {
   auto ctx = moduleOp->getContext();
   return lookupOrCreateFn(
-      moduleOp, kCuSeqLenNVGPU,
+      moduleOp, kCuSeqLenNVGPUI32,
       {UnrankedMemRefType::get(IntegerType::get(ctx, 32), 0),
        UnrankedMemRefType::get(IntegerType::get(ctx, 32), 0)},
       {});

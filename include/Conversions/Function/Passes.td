@@ -11,6 +11,12 @@ def HOMNVGPUToFuncPass : Pass<"homnvgpu-to-func", "mlir::func::FuncOp"> {
       ["::mlir::func::FuncDialect", "::mlir::arith::ArithDialect"];
 }
 
+def OptimizeMemoryPass : Pass<"hom-opti-mem", "mlir::func::FuncOp"> {
+  let summary = "Lowering HOMNVGPU to Func";
+  let dependentDialects =
+      ["::mlir::func::FuncDialect", "::mlir::arith::ArithDialect"];
+}
+
 def ExtractInitFuncPass : Pass<"extract-init-func", "mlir::ModuleOp"> {
   let summary = "Lowering Stablehlo to HOM";
   let dependentDialects =

@@ -7,6 +7,53 @@
 
 extern allocFnType nvgpuAllocer;
 
+#define thrustElementwiseDECL(op, suffix)                                      \
+  HANDS_ON_MLIR_RUNNERUTILS_EXPORT void thrustElementwise##op##suffix(         \
+      int64_t, void *, int64_t, void *, int64_t, void *);
+
+#define thrustElementwiseDEF(op, suffix, type)                                 \
+  void thrustElementwise##op##suffix(int64_t rankA, void *dstA, int64_t rankB, \
+                                     void *dstB, int64_t rankOut,              \
+                                     void *dstOut) {                           \
+    using namespace mlir::hands_on_mlir::homnvgpu_kernel;                      \
+    ElementwiseRunner<op<type>> runner;                                        \
+    runner.run(rankA, dstA, rankB, dstB, rankOut, dstOut);                     \
+  }
+
+#define thrustGatherDECL(suffix)                                               \
+  HANDS_ON_MLIR_RUNNERUTILS_EXPORT void thrustGather##suffix(                  \
+      int64_t, void *, int64_t, void *, int64_t, void *);
+
+#define thrustGatherDEF(suffix, type)                                          \
+  void thrustGather##suffix(int64_t rankIndices, void *desIndices,             \
+                            int64_t rankValue, void *desValue,                 \
+                            int64_t rankOut, void *desOut) {                   \
+    using namespace mlir::hands_on_mlir::homnvgpu_kernel;                      \
+    GatherRunner<type> runner;                                                 \
+    runner.run(rankIndices, desIndices, rankValue, desValue, rankOut, desOut); \
+  }
+
+#define thrustElementwiseDEF(op, suffix, type)                                 \
+  void thrustElementwise##op##suffix(int64_t rankA, void *dstA, int64_t rankB, \
+                                     void *dstB, int64_t rankOut,              \
+                                     void *dstOut) {                           \
+    using namespace mlir::hands_on_mlir::homnvgpu_kernel;                      \
+    ElementwiseRunner<op<type>> runner;                                        \
+    runner.run(rankA, dstA, rankB, dstB, rankOut, dstOut);                     \
+  }
+
+#define thrustCuSeqLenDECL(suffix)                                             \
+  HANDS_ON_MLIR_RUNNERUTILS_EXPORT void thrustCuSeqLen##suffix(                \
+      int64_t, void *, int64_t, void *);
+
+#define thrustCuSeqLenDEF(suffix, type)                                        \
+  void thrustCuSeqLen##suffix(int64_t rankInput, void *desInput,               \
+                              int64_t rankOut, void *desOut) {                 \
+    using namespace mlir::hands_on_mlir::homnvgpu_kernel;                      \
+    CuSeqLenRunner<type> runner;                                               \
+    runner.run(rankInput, desInput, rankOut, desOut);                          \
+  }
+
 extern "C" {
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT void
 cutlassGemmF32(int64_t rankA, void *dstA, bool transa, int64_t rankB,
@@ -63,9 +110,6 @@ nvteBertAttentionF16(int64_t rankA, void *dstA, int64_t rankSeqlen,
                      void *dstSeqlen, int64_t rankOut, void *dstOut,
                      float scale, int64_t headNum);
 
-HANDS_ON_MLIR_RUNNERUTILS_EXPORT void
-thrustCuSeqLen(int64_t rankA, void *dstA, int64_t rankOut, void *dstOut);
-
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT C_UnrankedMemRefType
 allocConstantNVGPUF32(int32_t idx);
 
@@ -84,6 +128,22 @@ C_UnrankedMemRefType alloc1DMemRefNVGPUI32(int32_t);
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT void deallocNVGPUF32(int64_t rank, void *dst);
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT void deallocNVGPUF16(int64_t rank, void *dst);
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT void deallocNVGPUI32(int64_t rank, void *dst);
+
+thrustElementwiseDECL(Add, F32);
+thrustElementwiseDECL(Sub, F32);
+thrustElementwiseDECL(Mul, F32);
+thrustElementwiseDECL(Div, F32);
+
+thrustElementwiseDECL(Add, F16);
+thrustElementwiseDECL(Sub, F16);
+thrustElementwiseDECL(Mul, F16);
+thrustElementwiseDECL(Div, F16);
+
+thrustGatherDECL(F32);
+thrustGatherDECL(F16);
+
+thrustCuSeqLenDECL(I32);
+thrustCuSeqLenDECL(I64);
 }
 
 #endif

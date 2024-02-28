@@ -109,7 +109,7 @@ class BertAttentionRunner : public OperationRunner {
                       NVTEWrapperDTypeMap<ElementType>::kType);
     TensorWrapper bias(nullptr, bias_shape,
                        NVTEWrapperDTypeMap<ElementType>::kType); // Not used.
-    TensorWrapper cu_seqlen(SeqLen.data, std::vector<size_t>(bs + 1),
+    TensorWrapper cu_seqlen(SeqLen.data, std::vector<size_t>{bs + 1},
                             NVTEWrapperDTypeMap<int32_t>::kType);
     TensorWrapper s(nullptr, std::vector<size_t>{1},
                     NVTEWrapperDTypeMap<ElementType>::kType); // Not used.
@@ -120,7 +120,8 @@ class BertAttentionRunner : public OperationRunner {
         NVTEWrapperDTypeMap<int64_t>::kType); // Not used for inference. This
                                               // state is for dropout.
 
-    auto workspace_buffer = getDummyPointer(workspace.shape().data[0]);
+    auto workspace_buffer = getDummyPointer(
+        workspace.shape().data[0] * getNVTEWrapperDTypeSize(workspace.dtype()));
     workspace = TensorWrapper(workspace_buffer.get(), workspace.shape(),
                               workspace.dtype());
 

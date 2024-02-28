@@ -2,6 +2,8 @@
 #include "ExecutionEngine/HandsOnRunnerUtils.h"
 #include "NVGPUKernels/BertAttentionRunner.h"
 #include "NVGPUKernels/CuSeqLen.h"
+#include "NVGPUKernels/ElementwiseRunner.h"
+#include "NVGPUKernels/GatherRunner.h"
 #include "NVGPUKernels/GemmRunner.h"
 #include "NVGPUKernels/Layernorm.h"
 #include "NVGPUKernels/Utils.h"
@@ -237,11 +239,6 @@ C_UnrankedMemRefType allocConstantNVGPUF16(int32_t idx) {
   return res;
 }
 
-void thrustCuSeqLen(int64_t rankA, void *dstA, int64_t rankOut, void *dstOut) {
-  mlir::hands_on_mlir::CuSeqLenRunner maskRunner;
-  maskRunner.run(rankA, dstA, rankOut, dstOut);
-}
-
 void nvteLayernormF32(int64_t rankA, void *dstA, float eps) {
   mlir::hands_on_mlir::LayernormRunner<float> lnRunner;
   lnRunner.run(rankA, dstA, eps);
@@ -294,4 +291,20 @@ void deallocNVGPUI32(int64_t rank, void *dst) {
   auto memRef = convertToDynamicMemRefType<int32_t>(rank, dst);
   cudaFree(memRef.data);
 }
+
+thrustElementwiseDEF(Add, F32, float);
+thrustElementwiseDEF(Sub, F32, float);
+thrustElementwiseDEF(Mul, F32, float);
+thrustElementwiseDEF(Div, F32, float);
+
+thrustElementwiseDEF(Add, F16, half);
+thrustElementwiseDEF(Sub, F16, half);
+thrustElementwiseDEF(Mul, F16, half);
+thrustElementwiseDEF(Div, F16, half);
+
+thrustGatherDEF(F32, float);
+thrustGatherDEF(F16, half);
+
+thrustCuSeqLenDEF(I64, int64_t);
+thrustCuSeqLenDEF(I32, int32_t);
 }

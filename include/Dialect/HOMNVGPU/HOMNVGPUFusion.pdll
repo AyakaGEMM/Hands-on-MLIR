@@ -18,22 +18,28 @@ Rewrite generateGemmLnGemm(op0 : Op, op1 : Op, op2 : Op);
 Rewrite updateMaskWithCuSeqLen(op0 : Op, op1 : Op);
 Rewrite generateTranspose(op0 : Op);
 
-Pattern {
-  let matmul0 = op<homnvgpu.matmul>(
-      input0
-      : Value, input1
-      : Value, input2
-      : Value){alpha = alpha0 : Attr, beta = beta0 : Attr, act = act0 : Attr};
-  hasOneUse(matmul0);
-  let ln = op<homnvgpu.layernorm>(matmul0){eps = eps : Attr};
-  hasOneUse(ln);
-  let matmul1 = op<homnvgpu.matmul>(ln, input3 : Value, input4 : Value) {
-    alpha = alpha1 : Attr, beta = beta1 : Attr, act = act1 : Attr
-  } -> (resultType : Type);
-  hasOneUse(matmul1);
-
-  rewrite matmul1 with { generateGemmLnGemm(matmul0, ln, matmul1); };
-}
+// Pattern {
+//
+//   let transa = attr<"0 : i1">;
+//   let transb = attr<"0 : i1">;
+//
+//   let matmul0 = op<homnvgpu.matmul>(
+//       input0
+//       : Value, input1
+//       : Value, input2
+//       : Value){alpha = alpha0 : Attr, beta = beta0 : Attr, act = act0 : Attr,
+//       transa=transa, transb=transb};
+//   hasOneUse(matmul0);
+//   let ln = op<homnvgpu.layernorm>(matmul0){eps = eps : Attr};
+//   hasOneUse(ln);
+//   let matmul1 = op<homnvgpu.matmul>(ln, input3 : Value, input4 : Value) {
+//     alpha = alpha1 : Attr, beta = beta1 : Attr, act = act1 : Attr,
+//     transa=transa, transb=transb
+//   } -> (resultType : Type);
+//   hasOneUse(matmul1);
+//
+//   rewrite matmul1 with { generateGemmLnGemm(matmul0, ln, matmul1); };
+// }
 
 Pattern {
   let mask = op<hom.mask>(input : Value);

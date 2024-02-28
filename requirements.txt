@@ -1,3 +1,4 @@
+-f https://llvm.github.io/torch-mlir/package-index/ --pre
 torch-mlir==20240127.1096
 transformers==4.37.2
 pre-commit==3.6.0

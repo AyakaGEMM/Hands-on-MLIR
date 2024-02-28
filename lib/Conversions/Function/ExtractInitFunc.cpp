@@ -83,6 +83,14 @@ struct ExtractPattern : public OpRewritePattern<func::FuncOp> {
     SmallVector<Value> initAllocValues;
 
     op->walk([&](func::CallOp callOp) {
+      if (callOp.getCallee().contains("alloc")) {
+        auto res = callOp->getResult(0);
+        if (res.getUsers().empty()) {
+          rewriter.eraseOp(callOp);
+          return;
+        }
+      }
+
       if (callOp.getCallee().equals(kAllocConstantF32) ||
           callOp.getCallee().equals(kAllocConstantNVGPUF32) ||
           callOp.getCallee().equals(kAllocConstantNVGPUF16)) {

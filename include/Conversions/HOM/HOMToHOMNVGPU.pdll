@@ -53,3 +53,15 @@ Pattern {
   replace root with op<homnvgpu.bert_mha>(qkv, mask){scale = scale,
                                                      head_num = head_num};
 }
+
+Pattern {
+  let root = op<hom.add>(a : Value, b : Value);
+
+  replace root with op<homnvgpu.add>(a, b);
+}
+
+Pattern {
+  let root = op<hom.gather>(a : Value, b : Value);
+
+  replace root with op<homnvgpu.gather>(a, b);
+}

@@ -22,20 +22,29 @@ class BertAttentionWrapper(torch.nn.Module):
         self.attn.query.bias.data.zero_()
         self.attn.key.bias.data.zero_()
         self.attn.value.bias.data.zero_()
+        self.linear = torch.nn.Linear(128, 128, bias=False)
+        self.ln = torch.nn.LayerNorm(128)
 
     def forward(self, hidden, mask):
         mask = mask[:, None, None, :]
         mask = mask.to(torch.float32)
         mask = (1.0 - mask) * torch.finfo(torch.float32).min
-        return self.attn(hidden, mask)[0]
+        return self.ln(self.linear(self.attn(hidden, mask)[0]) + hidden)
 
 
 model = BertAttentionWrapper()
 model.eval()
 
-print(encoded_input_list[0])
+with open("0.txt", "w") as fl:
+    for i in encoded_input_list[0].view(-1):
+        print(float(i), file=fl)
+thing = model(*encoded_input_list)
 
-print(model(*encoded_input_list))
+print(thing)
+
+with open("1.txt", "w") as fl:
+    for i in thing.view(-1):
+        print(float(i), file=fl)
 
 with torch.no_grad():
     module = torch_mlir.compile(

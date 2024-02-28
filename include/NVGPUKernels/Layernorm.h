@@ -600,9 +600,9 @@ template <typename ElementType> class LayernormRunner : public OperationRunner {
     auto output_tensor = TensorWrapper(nullptr, input_shape,
                                        NVTEWrapperDTypeMap<ElementType>::kType);
     auto rsigma_tensor = TensorWrapper(nullptr, intermediates_shape,
-                                       NVTEWrapperDTypeMap<ElementType>::kType);
+                                       NVTEWrapperDTypeMap<float>::kType);
     auto mu_tensor = TensorWrapper(nullptr, intermediates_shape,
-                                   NVTEWrapperDTypeMap<ElementType>::kType);
+                                   NVTEWrapperDTypeMap<float>::kType);
 
     int device_id;
     cudaDeviceProp prop;
@@ -626,17 +626,25 @@ template <typename ElementType> class LayernormRunner : public OperationRunner {
     size_t bs = A.rank == 3 ? A.sizes[0] * A.sizes[1] : A.sizes[0];
     size_t hidden_size = A.rank == 3 ? A.sizes[2] : A.sizes[1];
 
-    auto zeroData = getZeroPointer<ElementType>(hidden_size),
-         outData = getDummyPointer<ElementType>(bs);
+    auto zeroData = getZeroPointer<ElementType>(hidden_size * 2);
+    auto outData = getDummyPointer<float>(bs * 2);
 
-    TensorWrapper workspace_dummy, barrier_dummy;
+    TensorWrapper workspace, barrier;
     int mpCount;
 
-    getWorkSpace(bs, hidden_size, eps, workspace_dummy, barrier_dummy, mpCount);
+    getWorkSpace(bs, hidden_size, eps, workspace, barrier, mpCount);
 
-    TensorWrapper workspace(nullptr, workspace_dummy.shape(),
-                            workspace_dummy.dtype()),
-        barrier(nullptr, barrier_dummy.shape(), barrier_dummy.dtype());
+    size_t workspaceSize = workspace.shape().data[0] *
+                           getNVTEWrapperDTypeSize(workspace.dtype()),
+           barrierSize = barrier.shape().data[0] *
+                         getNVTEWrapperDTypeSize(barrier.dtype());
+
+    auto workspace_buffer = getDummyPointer(workspaceSize + barrierSize);
+
+    workspace = TensorWrapper(workspace_buffer.get(), workspace.shape(),
+                              workspace.dtype());
+    barrier = TensorWrapper(workspace_buffer.get() + workspaceSize,
+                            barrier.shape(), barrier.dtype());
 
     auto input_shape = std::vector<size_t>{bs, hidden_size};
     auto weight_shape = std::vector<size_t>{hidden_size};
@@ -646,14 +654,14 @@ template <typename ElementType> class LayernormRunner : public OperationRunner {
                                       NVTEWrapperDTypeMap<ElementType>::kType);
     auto gamma_tensor = TensorWrapper(zeroData.get(), weight_shape,
                                       NVTEWrapperDTypeMap<ElementType>::kType);
-    auto beta_tensor = TensorWrapper(zeroData.get(), weight_shape,
+    auto beta_tensor = TensorWrapper(zeroData.get() + hidden_size, weight_shape,
                                      NVTEWrapperDTypeMap<ElementType>::kType);
     auto output_tensor = TensorWrapper(A.data, input_shape,
                                        NVTEWrapperDTypeMap<ElementType>::kType);
     auto rsigma_tensor = TensorWrapper(outData.get(), intermediates_shape,
-                                       NVTEWrapperDTypeMap<ElementType>::kType);
-    auto mu_tensor = TensorWrapper(outData.get(), intermediates_shape,
-                                   NVTEWrapperDTypeMap<ElementType>::kType);
+                                       NVTEWrapperDTypeMap<float>::kType);
+    auto mu_tensor = TensorWrapper(outData.get() + bs, intermediates_shape,
+                                   NVTEWrapperDTypeMap<float>::kType);
 
     return {std::move(input_tensor),
             std::move(gamma_tensor),

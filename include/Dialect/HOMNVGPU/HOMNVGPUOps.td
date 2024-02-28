@@ -109,4 +109,22 @@ def HOMNVGPU_CuSeqLenOp : HOMNVGPU_Op<"cu_seqlen", []> {
   let results = (outs HOM_RankedTensor : $output);
 }
 
+def HOMNVGPU_AddOp : HOMNVGPU_Op<"add", [Commutative]> {
+  let summary = "Elementwise addition operator";
+
+  let description =
+      [{Elementwise addition of input1 and
+            input2.Axis of size 1 will be broadcast as necessary.}];
+
+  let arguments = (ins HOM_Tensor : $input1, HOM_Tensor : $input2);
+
+  let results = (outs HOM_Tensor : $output);
+}
+
+def HOMNVGPU_GatherOp : HOMNVGPU_Op<"gather", []> {
+  let arguments = (ins HOM_RankedTensor : $indices, HOM_RankedTensor : $value);
+
+  let results = (outs HOM_RankedTensor : $output);
+}
+
 #endif // HOM_HOMNVGPUDIALECT_TD

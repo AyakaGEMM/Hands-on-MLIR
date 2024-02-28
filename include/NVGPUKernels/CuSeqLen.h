@@ -17,7 +17,9 @@
 
 namespace mlir {
 namespace hands_on_mlir {
+namespace homnvgpu_kernel {
 
+template <typename InputElementType>
 class CuSeqLenRunner : public mlir::hands_on_mlir::OperationRunner {
 
 public:
@@ -28,16 +30,12 @@ public:
     }
   };
 
-  template <typename T> struct doNothing : public std::unary_function<T, T> {
-    __host__ __device__ constexpr T operator()(const T &x) const { return x; }
-  };
-
 public:
   // To-do: I use thrust here only for fast development. Could protentially be
   // fused into a single kernel or at least use multi stream to improve the
   // performance.
   Status run(int rankIn, void *desIn, int rankOut, void *desOut) {
-    auto In = convertToDynamicMemRefType<int32_t>(rankIn, desIn);
+    auto In = convertToDynamicMemRefType<InputElementType>(rankIn, desIn);
     auto Out = convertToDynamicMemRefType<int32_t>(rankOut, desOut);
 
     auto inTotlaSize = std::accumulate(In.sizes, In.sizes + rankIn, 1,
@@ -54,22 +52,19 @@ public:
 
       auto inIter =
           thrust::make_transform_iterator(inPtr, flip<int32_t, int32_t>());
-      auto outIter = thrust::make_transform_input_output_iterator(
-          outPtr, doNothing<int32_t>(), doNothing<int32_t>());
 
-      *outIter = thrust::reduce(inIter, inIter + In.strides[0]);
+      *outPtr = thrust::reduce(inIter, inIter + In.strides[0]);
     }
 
     auto outPtr = thrust::device_pointer_cast(Out.data);
-    auto outIter = thrust::make_transform_input_output_iterator(
-        outPtr, doNothing<int32_t>(), doNothing<int32_t>());
 
-    *outIter = 0;
-    thrust::inclusive_scan(outIter + 1, outIter + In.sizes[0] + 1, outIter + 1);
+    *outPtr = 0;
+    thrust::inclusive_scan(outPtr + 1, outPtr + In.sizes[0] + 1, outPtr + 1);
 
     return Status::kSuccess;
   }
 };
 
+} // namespace homnvgpu_kernel
 } // namespace hands_on_mlir
 } // namespace mlir

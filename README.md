@@ -10,6 +10,17 @@ WIP. Heavily developing in progress currently, so no document available. Should 
 + End-to-end huggingface bert model support (On-going)
 + Autotuning cutlass (If I have enough time)
 
+# Pre-requirement
+
++ For nvcc, host compiler gcc >= 11. Clang is not tested.
++ For cpp code, Must use clang to compile.
+    1. For _Float16 support (could be removed in the future)
+    2. Used some other weird stuff. Simply just cannot compiled by gcc.
++ C++ std=gnu++20 for template lambda support.
++ CUDNN > 8.9.7. If cudnn is not installed by package manager, you will also need to set env `CUDNN_PATH` for cudnn-frontend to find the correct cudnn location.
++ Only tested on sm86 and sm89. sm version lower than 80 is not supported.
++ Only tested on Linux. WSL is not supported.
+
 # Install
 
 ## Install MLIR
