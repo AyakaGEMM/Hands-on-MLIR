@@ -335,8 +335,9 @@ struct ConvertHOMNVGPUAddOp : public OpConversionPattern<homnvgpu::AddOp> {
     auto returnType = op.getOutput().getType();
 
     func::FuncOp allocFn;
-
-    if (returnType.getElementType().isF16()) {
+    if (returnType.getElementType().isF32()) {
+      allocFn = lookupOrCreateAlloc3DMemRefNVGPUF32Fn(moduleOp);
+    } else if (returnType.getElementType().isF16()) {
       allocFn = lookupOrCreateAlloc3DMemRefNVGPUF16Fn(moduleOp);
     } else {
       llvm_unreachable("Not implemented.");
@@ -362,7 +363,9 @@ struct ConvertHOMNVGPUAddOp : public OpConversionPattern<homnvgpu::AddOp> {
 
     func::FuncOp addFn;
 
-    if (returnType.getElementType().isF16()) {
+    if (returnType.getElementType().isF32()) {
+      addFn = lookupOrCreateAddNVGPUF32Fn(moduleOp);
+    } else if (returnType.getElementType().isF16()) {
       addFn = lookupOrCreateAddNVGPUF16Fn(moduleOp);
     } else {
       llvm_unreachable("Not implemented.");

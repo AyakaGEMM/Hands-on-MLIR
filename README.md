@@ -13,8 +13,8 @@ WIP. Heavily developing in progress currently, so no document available. Should 
         + ~~Linear~~
         + ~~Layernorm~~
     + Embedding:
-        + Gather: Implemented, but not verfied.
-        + Add: Implemented, but not verfied.
+        + ~~Add~~
+        + Gather: Implemented, but not correct.
 + Autotuning cutlass (If I have enough time)
 
 # Pre-requirement

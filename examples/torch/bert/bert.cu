@@ -19,9 +19,9 @@
        (k) * (des).strides[2]])
 
 int main() {
-  constexpr int64_t bs = 2;
+  constexpr int64_t bs = 1;
   constexpr int64_t seq_len = 64;
-  constexpr int64_t hidden_size = 30522;
+  constexpr int64_t output_size = 30522;
   auto input_ids =
       allocHelper<int64_t, 2, int64_t>({bs, seq_len}, nvgpuAllocer);
   auto mask = allocHelper<int64_t, 2, int64_t>({bs, seq_len}, nvgpuAllocer);
@@ -73,9 +73,10 @@ int main() {
   UnrankedMemRefType<half> b;
   mlir::hands_on_mlir::ExecutionEngine e("libbert_nvgpu.so");
 
-  auto res = e.invoke("forward", input_ids.rank, input_ids.descriptor,
-                      mask.rank, mask.descriptor,
-                      mlir::hands_on_mlir::ExecutionEngine::result(b));
+  auto res =
+      e.invoke("forward", input_ids.rank, input_ids.descriptor, mask.rank,
+               mask.descriptor, type_id.rank, type_id.descriptor,
+               mlir::hands_on_mlir::ExecutionEngine::result(b));
   if (res) {
     llvm::handleAllErrors(std::move(res));
   }
@@ -100,7 +101,7 @@ int main() {
     thing.emplace_back(bb);
   }
 
-  half data[bs * seq_len * hidden_size];
+  half data[bs * seq_len * output_size];
 
   checkCudaErrors(
       cudaMemcpy(data, c.data, sizeof(data), cudaMemcpyDeviceToHost));

@@ -53,6 +53,7 @@ constexpr llvm::StringRef kBertAttentionNVGPUF32 = "nvteBertAttentionF32";
 constexpr llvm::StringRef kBertAttentionNVGPUF16 = "nvteBertAttentionF16";
 constexpr llvm::StringRef kCuSeqLenNVGPUI64 = "thrustCuSeqLenI64";
 constexpr llvm::StringRef kCuSeqLenNVGPUI32 = "thrustCuSeqLenI32";
+constexpr llvm::StringRef kAddNVGPUF32 = "thrustElementwiseAddF32";
 constexpr llvm::StringRef kAddNVGPUF16 = "thrustElementwiseAddF16";
 constexpr llvm::StringRef kGatherNVGPUF16 = "thrustGatherF16";
 
@@ -79,6 +80,7 @@ func::FuncOp lookupOrCreateMatmulNVGPUF32Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateGemmNVGPUF32Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateLayernormNVGPUF32Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateBertAttentionNVGPUF32Fn(ModuleOp moduleOp);
+func::FuncOp lookupOrCreateAddNVGPUF32Fn(ModuleOp moduleOp);
 
 // FP16
 func::FuncOp lookupOrCreateAllocConstantNVGPUF16Fn(ModuleOp moduleOp);

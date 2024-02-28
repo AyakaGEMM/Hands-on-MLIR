@@ -4,12 +4,14 @@ from transformers import BertConfig, BertForMaskedLM, BertTokenizer
 
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 
+bs = 1
+
 text = "Hello I'm a [MASK] model."
 encoded_input = tokenizer(text, return_tensors="pt")
 encoded_input_list = [
-    encoded_input["input_ids"].expand(2, -1),
-    encoded_input["attention_mask"].expand(2, -1),
-    encoded_input["token_type_ids"].expand(2, -1),
+    encoded_input["input_ids"].expand(bs, -1),
+    encoded_input["attention_mask"].expand(bs, -1),
+    encoded_input["token_type_ids"].expand(bs, -1),
 ]
 
 encoded_input_list = [
@@ -17,10 +19,10 @@ encoded_input_list = [
         [
             i,
             (
-                torch.zeros(2, 64 - i.shape[1], dtype=torch.int64)
+                torch.zeros(bs, 64 - i.shape[1], dtype=torch.int64)
                 if idx != 0
                 else torch.tensor(
-                    [[102 for k in range(64 - i.shape[1])] for j in range(2)]
+                    [[102 for k in range(64 - i.shape[1])] for j in range(bs)]
                 )
             ),
         ],
@@ -60,7 +62,7 @@ for idx in range(3):
         for i in encoded_input_list[idx].reshape(-1):
             print(int(i), file=fl)
 
-with open("4.txt", "w") as fl:
+with open("3.txt", "w") as fl:
     for i in output.reshape(-1):
         print(float(i), file=fl)
 

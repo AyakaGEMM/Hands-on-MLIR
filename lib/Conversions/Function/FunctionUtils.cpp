@@ -126,6 +126,15 @@ func::FuncOp lookupOrCreateGatherNVGPUF16Fn(ModuleOp moduleOp) {
       {});
 }
 
+func::FuncOp lookupOrCreateAddNVGPUF32Fn(ModuleOp moduleOp) {
+  auto ctx = moduleOp->getContext();
+  return lookupOrCreateFn(moduleOp, kAddNVGPUF32,
+                          {UnrankedMemRefType::get(Float32Type::get(ctx), 0),
+                           UnrankedMemRefType::get(Float32Type::get(ctx), 0),
+                           UnrankedMemRefType::get(Float32Type::get(ctx), 0)},
+                          {});
+}
+
 func::FuncOp lookupOrCreateAddNVGPUF16Fn(ModuleOp moduleOp) {
   auto ctx = moduleOp->getContext();
   return lookupOrCreateFn(moduleOp, kAddNVGPUF16,

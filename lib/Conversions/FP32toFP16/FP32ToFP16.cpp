@@ -111,6 +111,7 @@ public:
           }
         }
       }
+
       if (dyn_cast<hom::BertMhaOp>(op)) {
         if (auto tp = dyn_cast<RankedTensorType>(op->getOperandTypes()[1])) {
           if (tp.getElementType().isF32()) {
@@ -121,6 +122,7 @@ public:
           }
         }
       }
+
       return success(isModified);
     }
 

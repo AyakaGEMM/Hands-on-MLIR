@@ -9,7 +9,7 @@ hs = 768
 
 encoded_input_list = [
     torch.rand((1, 64, hs)),
-    torch.ones((1, 64), dtype=torch.int32),
+    torch.ones((1, 64), dtype=torch.int64),
 ]
 
 

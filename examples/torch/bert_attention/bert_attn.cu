@@ -23,11 +23,11 @@ int main() {
   constexpr int64_t hidden_size = 768;
   auto hidden_state =
       allocHelper<half, 3, half>({1, seq_len, hidden_size}, nvgpuAllocer);
-  auto mask = allocHelper<int32_t, 2>({1, seq_len}, nvgpuAllocer);
+  auto mask = allocHelper<int64_t, 2>({1, seq_len}, nvgpuAllocer);
 
   auto hidden_des =
       static_cast<StridedMemRefType<half, 3> *>(hidden_state.descriptor);
-  auto mask_des = static_cast<StridedMemRefType<int32_t, 2> *>(mask.descriptor);
+  auto mask_des = static_cast<StridedMemRefType<int64_t, 2> *>(mask.descriptor);
 
   std::vector<half> hidden_data(hidden_size * seq_len);
 
@@ -44,7 +44,7 @@ int main() {
                              sizeof(half) * hidden_data.size(),
                              cudaMemcpyHostToDevice));
 
-  int32_t mask_data[seq_len];
+  int64_t mask_data[seq_len];
   for (auto &i : mask_data) {
     i = 1;
   }

@@ -8,7 +8,9 @@
 #include "thrust/iterator/zip_iterator.h"
 #include <cstdint>
 #include <cuda_runtime_api.h>
+#include <thrust/execution_policy.h>
 #include <thrust/gather.h>
+#include <thrust/host_vector.h>
 
 #include <cub/device/device_reduce.cuh>
 #include <cub/device/device_scan.cuh>
@@ -27,17 +29,18 @@ namespace homnvgpu_kernel {
 template <typename ElementType>
 class GatherRunner : public mlir::hands_on_mlir::OperationRunner {
 public:
-  template <typename T = int64_t> struct a : public std::unary_function<T, T> {
+  template <typename T = int64_t>
+  struct GetRealIndexFn : public std::unary_function<T, T> {
 
     thrust::device_ptr<T> indices;
     T row_length;
 
     __host__ __device__ constexpr T operator()(const T &x) const {
-      return x % row_length + indices[x / row_length];
+      return (x % row_length) + indices[x / row_length] * row_length;
     }
 
-    a(thrust::device_ptr<T> indices_, T row_length_)
-        : indices(indices), row_length(row_length) {}
+    GetRealIndexFn(thrust::device_ptr<T> indices_, T row_length_)
+        : indices(indices_), row_length(row_length_) {}
   };
 
 public:
@@ -52,7 +55,8 @@ public:
 
     assert(value.rank == 3);
     assert(value.sizes[0] == 1);
-    assert(indices.rank == out.rank);
+    assert(indices.rank + 1 == out.rank);
+    assert(out.sizes[out.rank - 1] == value.sizes[2]);
     for (auto i = 0; i < indices.rank; i++) {
       assert(indices.sizes[i] == out.sizes[i]);
     }
@@ -61,12 +65,12 @@ public:
     auto value_thrust_ptr = thrust::device_pointer_cast(value.data);
     auto out_thrust_ptr = thrust::device_pointer_cast(out.data);
 
-    auto total_size = std::accumulate(
-        indices.sizes, indices.sizes + indices.rank, 1, std::multiplies<>());
+    auto total_size = std::accumulate(out.sizes, out.sizes + out.rank, 1,
+                                      std::multiplies<>());
 
-    auto map_iter =
-        thrust::make_transform_iterator(thrust::make_counting_iterator(0),
-                                        a(indices_thrust_ptr, value.sizes[2]));
+    auto map_iter = thrust::make_transform_iterator(
+        thrust::make_counting_iterator(0),
+        GetRealIndexFn(indices_thrust_ptr, value.sizes[2]));
 
     thrust::gather(map_iter, map_iter + total_size, value_thrust_ptr,
                    out_thrust_ptr);
