@@ -63,3 +63,4 @@ repos:
       - id: codespell
         args:
           - --skip=.git,thirdparty*
+          - -L te

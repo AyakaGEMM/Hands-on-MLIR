@@ -22,6 +22,7 @@ int main() {
   constexpr int64_t bs = 1;
   constexpr int64_t seq_len = 64;
   constexpr int64_t output_size = 30522;
+  constexpr int64_t real_len = 10;
   auto input_ids =
       allocHelper<int64_t, 2, int64_t>({bs, seq_len}, nvgpuAllocer);
   auto mask = allocHelper<int64_t, 2, int64_t>({bs, seq_len}, nvgpuAllocer);
@@ -43,6 +44,7 @@ int main() {
     assert(ii < input_ids_data.size());
     input_ids_data[ii++] = a;
   }
+  in.close();
 
   checkCudaErrors(cudaMemcpy(input_ids_des->data, input_ids_data.data(),
                              sizeof(int64_t) * input_ids_data.size(),
@@ -54,6 +56,7 @@ int main() {
     assert(ii < input_ids_data.size());
     input_ids_data[ii++] = a;
   }
+  in.close();
 
   checkCudaErrors(cudaMemcpy(mask_des->data, input_ids_data.data(),
                              sizeof(int64_t) * input_ids_data.size(),
@@ -90,23 +93,22 @@ int main() {
 
   auto c = DynamicMemRefType<half>(b);
   std::cout << c.rank << std::endl;
-  assert(std::accumulate(c.sizes, c.sizes + c.rank, 1, std::multiplies<>()) ==
-         input_ids_data.size());
 
   std::vector<half> thing;
   in.close();
-  in.open("4.txt");
+  in.open("3.txt");
   float bb;
   while (in >> bb) {
     thing.emplace_back(bb);
   }
 
-  half data[bs * seq_len * output_size];
+  half *data = new half[bs * seq_len * output_size];
 
-  checkCudaErrors(
-      cudaMemcpy(data, c.data, sizeof(data), cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaMemcpy(data, c.data,
+                             sizeof(half) * bs * seq_len * output_size,
+                             cudaMemcpyDeviceToHost));
   for (int i = 0; i < c.sizes[0]; i++) {
-    for (int j = 0; j < c.sizes[1]; j++) {
+    for (int j = 0; j < real_len; j++) {
       for (int k = 0; k < c.sizes[2]; k++) {
         std::cout << float(RowMajor(data, c, i, j, k) -
                            RowMajor(thing, c, i, j, k))

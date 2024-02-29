@@ -14,6 +14,8 @@ encoded_input_list = [
     encoded_input["token_type_ids"].expand(bs, -1),
 ]
 
+real_len = encoded_input_list[0].shape[1]
+
 encoded_input_list = [
     torch.concat(
         [
@@ -38,7 +40,6 @@ class BertWrapper(torch.nn.Module):
     def __init__(self):
         super().__init__()
         config = BertConfig().from_pretrained("bert-base-uncased")
-        config.num_hidden_layers = 2
         self.model = BertForMaskedLM(config)
 
     def forward(self, input_ids, attention_mask, token_type_ids):
@@ -65,6 +66,8 @@ for idx in range(3):
 with open("3.txt", "w") as fl:
     for i in output.reshape(-1):
         print(float(i), file=fl)
+
+print(real_len)
 
 with open("bert.mlir", "w") as fl:
     print(module, file=fl, end="")

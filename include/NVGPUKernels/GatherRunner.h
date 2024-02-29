@@ -2,6 +2,7 @@
 
 #include "NVGPUKernels/OperationRunner.h"
 #include "NVGPUKernels/Utils.h"
+#include "driver_types.h"
 #include "thrust/device_ptr.h"
 #include "thrust/iterator/counting_iterator.h"
 #include "thrust/iterator/transform_iterator.h"
@@ -36,7 +37,7 @@ public:
     T row_length;
 
     __host__ __device__ constexpr T operator()(const T &x) const {
-      return (x % row_length) + indices[x / row_length] * row_length;
+      return indices[x / row_length] * row_length + (x % row_length);
     }
 
     GetRealIndexFn(thrust::device_ptr<T> indices_, T row_length_)
@@ -69,8 +70,8 @@ public:
                                       std::multiplies<>());
 
     auto map_iter = thrust::make_transform_iterator(
-        thrust::make_counting_iterator(0),
-        GetRealIndexFn(indices_thrust_ptr, value.sizes[2]));
+        thrust::make_counting_iterator<int64_t>(0),
+        GetRealIndexFn<int64_t>(indices_thrust_ptr, value.sizes[2]));
 
     thrust::gather(map_iter, map_iter + total_size, value_thrust_ptr,
                    out_thrust_ptr);

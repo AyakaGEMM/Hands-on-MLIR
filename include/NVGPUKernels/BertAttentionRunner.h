@@ -7,6 +7,8 @@
 #include "transformer_engine/transformer_engine.h"
 #include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <numeric>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -120,15 +122,37 @@ class BertAttentionRunner : public OperationRunner {
         NVTEWrapperDTypeMap<int64_t>::kType); // Not used for inference. This
                                               // state is for dropout.
 
-    auto workspace_buffer = getDummyPointer(
-        workspace.shape().data[0] * getNVTEWrapperDTypeSize(workspace.dtype()));
+    std::cout << "Aux size: " << aux_output_tensors.size << std::endl;
+    std::vector<size_t> aux_sizes;
+    size_t total_aux_size = 0;
+    size_t workspace_size =
+        workspace.shape().data[0] * getNVTEWrapperDTypeSize(workspace.dtype());
+
+    for (size_t i = 0; i < aux_output_tensors.size; i++) {
+      auto a = reinterpret_cast<transformer_engine::Tensor *>(
+          aux_output_tensors.tensors[i]);
+      auto size = std::accumulate(a->data.shape.begin(), a->data.shape.end(), 1,
+                                  std::multiplies<>()) *
+                  getNVTEWrapperDTypeSize(a->data.dtype);
+      std::cout << "Packed size: " << size << std::endl;
+      aux_sizes.push_back(size);
+      total_aux_size += size;
+    }
+
+    size_t offset = 0;
+
+    auto workspace_buffer = getDummyPointer(workspace_size + total_aux_size);
     workspace = TensorWrapper(workspace_buffer.get(), workspace.shape(),
                               workspace.dtype());
 
-    for (size_t i = 0; i < aux_output_tensors.size; i++) {
-    }
+    offset += workspace_size;
 
-    std::cout << "Aux size: " << aux_output_tensors.size << std::endl;
+    for (size_t i = 0; i < aux_output_tensors.size; i++) {
+      auto a = reinterpret_cast<transformer_engine::Tensor *>(
+          aux_output_tensors.tensors[i]);
+      a->data.dptr = workspace_buffer.get() + offset;
+      offset += aux_sizes[i];
+    }
 
     return {std::move(qkv),       std::move(bias),     std::move(cu_seqlen),
             std::move(s),         std::move(output),   seq_len,
