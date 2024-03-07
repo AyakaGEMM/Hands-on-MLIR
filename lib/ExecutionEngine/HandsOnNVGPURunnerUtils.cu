@@ -67,8 +67,6 @@ void cutlassGemmF32(int64_t rankA, void *dstA, bool transa, int64_t rankB,
   auto status =
       gemm.run(rankA, dstA, rankB, dstB, rankC, dstC, rankD, dstD, alpha, beta);
 
-  std::cout << cutlass::cutlassGetStatusString(status) << std::endl;
-
   assert(status == cutlass::Status::kSuccess);
 }
 
@@ -91,8 +89,6 @@ void cutlassGemmF16(int64_t rankA, void *dstA, bool transa, int64_t rankB,
 
   auto status =
       gemm.run(rankA, dstA, rankB, dstB, rankC, dstC, rankD, dstD, alpha, beta);
-
-  std::cout << cutlass::cutlassGetStatusString(status) << std::endl;
 
   assert(status == cutlass::Status::kSuccess);
 }

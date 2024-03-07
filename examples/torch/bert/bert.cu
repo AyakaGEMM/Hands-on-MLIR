@@ -9,9 +9,7 @@
 #include <cstdlib>
 #include <cuda.h>
 #include <fstream>
-#include <functional>
 #include <iostream>
-#include <numeric>
 #include <vector>
 
 #define RowMajor(A, des, i, j, k)                                              \
@@ -76,6 +74,7 @@ int main() {
   UnrankedMemRefType<half> b;
   mlir::hands_on_mlir::ExecutionEngine e("libbert_nvgpu.so");
 
+  // Warm up
   auto res =
       e.invoke("forward", input_ids.rank, input_ids.descriptor, mask.rank,
                mask.descriptor, type_id.rank, type_id.descriptor,
@@ -84,12 +83,36 @@ int main() {
     llvm::handleAllErrors(std::move(res));
   }
 
-  // res = e.invoke("forward", hidden_state.rank, hidden_state.descriptor,
-  //                mask.rank, mask.descriptor,
-  //                mlir::hands_on_mlir::ExecutionEngine::result(b));
-  // if (res) {
-  //   llvm::handleAllErrors(std::move(res));
-  // }
+  for (int i = 0; i < 10; i++) {
+    res = e.invoke("forward", input_ids.rank, input_ids.descriptor, mask.rank,
+                   mask.descriptor, type_id.rank, type_id.descriptor,
+                   mlir::hands_on_mlir::ExecutionEngine::result(b));
+    if (res) {
+      llvm::handleAllErrors(std::move(res));
+    }
+  }
+
+  cudaEvent_t start, stop;
+  checkCudaErrors(cudaEventCreate(&start));
+  checkCudaErrors(cudaEventCreate(&stop));
+
+  checkCudaErrors(cudaEventRecord(start));
+
+  for (int i = 0; i < 1000; i++) {
+    res = e.invoke("forward", input_ids.rank, input_ids.descriptor, mask.rank,
+                   mask.descriptor, type_id.rank, type_id.descriptor,
+                   mlir::hands_on_mlir::ExecutionEngine::result(b));
+    if (res) {
+      llvm::handleAllErrors(std::move(res));
+    }
+  }
+
+  checkCudaErrors(cudaEventRecord(stop));
+  checkCudaErrors(cudaEventSynchronize(stop));
+  float msecTotal = 0;
+  checkCudaErrors(cudaEventElapsedTime(&msecTotal, start, stop));
+
+  std::cout << "E2E latency: " << msecTotal / 1000 / 1000 << "s" << std::endl;
 
   auto c = DynamicMemRefType<half>(b);
   std::cout << c.rank << std::endl;
@@ -110,15 +133,13 @@ int main() {
   for (int i = 0; i < c.sizes[0]; i++) {
     for (int j = 0; j < real_len; j++) {
       for (int k = 0; k < c.sizes[2]; k++) {
-        std::cout << float(RowMajor(data, c, i, j, k) -
-                           RowMajor(thing, c, i, j, k))
-                  << " ";
+        if (std::abs(float(RowMajor(data, c, i, j, k) -
+                           RowMajor(thing, c, i, j, k))) > 1e-2) {
+          std::cout << "Not ok" << std::endl;
+        }
       }
-      std::cout << std::endl;
     }
-    std::cout << std::endl;
   }
-  std::cout << std::endl;
 
   cudaFree(c.data);
 

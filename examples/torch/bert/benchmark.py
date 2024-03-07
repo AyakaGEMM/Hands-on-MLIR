@@ -1,5 +1,4 @@
 import torch
-import torch_mlir
 from transformers import BertConfig, BertForMaskedLM, BertTokenizer
 
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
@@ -29,7 +28,7 @@ encoded_input_list = [
             ),
         ],
         dim=-1,
-    )
+    ).cuda()
     for idx, i in enumerate(encoded_input_list)
 ]
 
@@ -48,24 +47,24 @@ class BertWrapper(torch.nn.Module):
 
 model = BertWrapper()
 model.eval()
+model = model.cuda()
+model = model.half()
 
-output = model(*encoded_input_list)
+for i in range(10):
+    output = model(*encoded_input_list)
+
+a = torch.cuda.Event(True)
+b = torch.cuda.Event(True)
+a.record()
 
 with torch.no_grad():
-    module = torch_mlir.compile(
-        model, encoded_input_list, output_type="TOSA", use_tracing=True
-    )
+    for i in range(1000):
+        output = model(*encoded_input_list)
 
-for idx in range(3):
-    with open(f"{idx}.txt", "w") as fl:
-        for i in encoded_input_list[idx].reshape(-1):
-            print(int(i), file=fl)
+b.record()
 
-with open("3.txt", "w") as fl:
-    for i in output.reshape(-1):
-        print(float(i), file=fl)
+torch.cuda.synchronize()
 
-print(real_len)
+time = a.elapsed_time(b)
 
-with open("bert.mlir", "w") as fl:
-    print(module, file=fl, end="")
+print(time / 1000 / 1000)

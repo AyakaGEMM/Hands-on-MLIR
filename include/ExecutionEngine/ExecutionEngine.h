@@ -169,7 +169,6 @@ private:
     // Pack every arguments in an array of pointers. Delegate the packing to a
     // trait so that it can be overridden per argument type.
     (Argument<Args>::pack(argsArray, args), ...);
-    std::cout << argsArray.size() << std::endl;
     return invokePacked(funcName, argsArray);
   }
 

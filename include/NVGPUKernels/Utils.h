@@ -197,3 +197,17 @@ static std::shared_ptr<T> getDummyPointer(size_t size) {
 
   return ptr;
 }
+
+static auto getMulitProcessorCount() {
+  static int mpCount = -1;
+
+  if (mpCount == -1) {
+    int device_id;
+    cudaDeviceProp prop;
+    checkCudaErrors(cudaGetDevice(&device_id));
+    cudaGetDeviceProperties(&prop, device_id);
+    mpCount = prop.multiProcessorCount;
+  }
+
+  return mpCount;
+}

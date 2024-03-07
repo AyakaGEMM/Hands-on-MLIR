@@ -26,21 +26,6 @@ class BertAttentionRunner : public OperationRunner {
                     const std::vector<size_t> &output_shape, size_t head_num,
                     float scale, TensorWrapper &workspace,
                     NVTETensorPack &aux_output_tensors) {
-    for (auto i : qkv_shape)
-      std::cout << i << " ";
-    std::cout << std::endl;
-
-    for (auto i : bias_shape)
-      std::cout << i << " ";
-    std::cout << std::endl;
-
-    for (auto i : output_shape)
-      std::cout << i << " ";
-    std::cout << std::endl;
-
-    std::cout << scale << std::endl;
-    std::cout << head_num << std::endl;
-
     TensorWrapper qkv(nullptr, qkv_shape,
                       NVTEWrapperDTypeMap<ElementType>::kType);
     TensorWrapper bias(nullptr, bias_shape,
@@ -63,8 +48,6 @@ class BertAttentionRunner : public OperationRunner {
         cu_seqlen.data(), rng_state.data(), seq_len, false, scale, 0,
         NVTE_BS3HD, NVTE_Bias_Type::NVTE_NO_BIAS,
         NVTE_Mask_Type::NVTE_PADDING_MASK, workspace.data(), nullptr);
-
-    std::cout << "Ok" << std::endl;
   }
 
   std::tuple<TensorWrapper, TensorWrapper, TensorWrapper, TensorWrapper,
@@ -89,13 +72,6 @@ class BertAttentionRunner : public OperationRunner {
 
     assert(SeqLen.rank == 1);
     assert(SeqLen.sizes[0] == bs + 1);
-
-    std::cout << "Args: " << bs << " " << seq_len << " " << head_num << " "
-              << head_size << " "
-              << int(NVTEWrapperDTypeMap<ElementType>::kType) << " "
-              << (NVTEWrapperDTypeMap<ElementType>::kType ==
-                  transformer_engine::DType::kFloat16)
-              << std::endl;
 
     std::vector<size_t> qkv_shape = {bs * seq_len, 3, head_num, head_size};
 
@@ -122,37 +98,12 @@ class BertAttentionRunner : public OperationRunner {
         NVTEWrapperDTypeMap<int64_t>::kType); // Not used for inference. This
                                               // state is for dropout.
 
-    std::cout << "Aux size: " << aux_output_tensors.size << std::endl;
-    std::vector<size_t> aux_sizes;
-    size_t total_aux_size = 0;
     size_t workspace_size =
         workspace.shape().data[0] * getNVTEWrapperDTypeSize(workspace.dtype());
 
-    for (size_t i = 0; i < aux_output_tensors.size; i++) {
-      auto a = reinterpret_cast<transformer_engine::Tensor *>(
-          aux_output_tensors.tensors[i]);
-      auto size = std::accumulate(a->data.shape.begin(), a->data.shape.end(), 1,
-                                  std::multiplies<>()) *
-                  getNVTEWrapperDTypeSize(a->data.dtype);
-      std::cout << "Packed size: " << size << std::endl;
-      aux_sizes.push_back(size);
-      total_aux_size += size;
-    }
-
-    size_t offset = 0;
-
-    auto workspace_buffer = getDummyPointer(workspace_size + total_aux_size);
+    auto workspace_buffer = getDummyPointer(workspace_size);
     workspace = TensorWrapper(workspace_buffer.get(), workspace.shape(),
                               workspace.dtype());
-
-    offset += workspace_size;
-
-    for (size_t i = 0; i < aux_output_tensors.size; i++) {
-      auto a = reinterpret_cast<transformer_engine::Tensor *>(
-          aux_output_tensors.tensors[i]);
-      a->data.dptr = workspace_buffer.get() + offset;
-      offset += aux_sizes[i];
-    }
 
     return {std::move(qkv),       std::move(bias),     std::move(cu_seqlen),
             std::move(s),         std::move(output),   seq_len,

@@ -604,16 +604,12 @@ template <typename ElementType> class LayernormRunner : public OperationRunner {
     auto mu_tensor = TensorWrapper(nullptr, intermediates_shape,
                                    NVTEWrapperDTypeMap<float>::kType);
 
-    int device_id;
-    cudaDeviceProp prop;
-    checkCudaErrors(cudaGetDevice(&device_id));
-    cudaGetDeviceProperties(&prop, device_id);
-    mpCount = prop.multiProcessorCount;
+    mpCount = getMulitProcessorCount();
 
-    nvte_layernorm1p_fwd(
-        input_tensor.data(), gamma_tensor.data(), beta_tensor.data(), eps,
-        output_tensor.data(), mu_tensor.data(), rsigma_tensor.data(), nullptr,
-        prop.multiProcessorCount, workspace.data(), barrier.data());
+    nvte_layernorm1p_fwd(input_tensor.data(), gamma_tensor.data(),
+                         beta_tensor.data(), eps, output_tensor.data(),
+                         mu_tensor.data(), rsigma_tensor.data(), nullptr,
+                         mpCount, workspace.data(), barrier.data());
   }
 
   std::tuple<TensorWrapper, TensorWrapper, TensorWrapper, TensorWrapper,

@@ -247,8 +247,6 @@ public:
 
     auto op = static_cast<Operator *>(host_workspace_);
 
-    std::cout << "Run" << std::endl;
-
     return op->run();
   }
 };
@@ -558,11 +556,7 @@ public:
         construct_tensors(rankA, dstA, transa, rankB, dstB, transb, rankC, dstC,
                           rankD, dstD, activation, alpha, beta);
 
-    int device_id;
-    cudaDeviceProp prop;
-    checkCudaErrors(cudaGetDevice(&device_id));
-    cudaGetDeviceProperties(&prop, device_id);
-    auto mpCount = prop.multiProcessorCount;
+    auto mpCount = getMulitProcessorCount();
 
     nvte_cublas_gemm(b.data(), a.data(), c.data(), bias.data(), pre_gelu.data(),
                      transb, transa, false, workspace.data(), accumulate, false,

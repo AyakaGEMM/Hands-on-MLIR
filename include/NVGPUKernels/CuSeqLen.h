@@ -5,16 +5,13 @@
 #include <cstdint>
 #include <cuda_runtime_api.h>
 
-#include <cub/device/device_reduce.cuh>
-#include <cub/device/device_scan.cuh>
-#include <cub/util_allocator.cuh>
 #include <functional>
 #include <numeric>
+#include <nvToolsExt.h>
 #include <thrust/device_vector.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/transform_input_output_iterator.h>
 #include <thrust/transform.h>
-
 namespace mlir {
 namespace hands_on_mlir {
 namespace homnvgpu_kernel {
@@ -44,6 +41,8 @@ public:
     assert(In.sizes[0] + 1 == Out.sizes[0]);
     assert(In.rank == 2);
     assert(Out.rank == 1);
+    checkCudaErrors(cudaMemsetAsync(
+        Out.data, 0, sizeof(int32_t))); // Use memset to avoid malloc by thrust
 
     for (int64_t i = 0; i < In.sizes[0]; i++) {
       auto inPtr = thrust::device_pointer_cast(In.data + i * In.strides[0]);
@@ -55,7 +54,6 @@ public:
 
     auto outPtr = thrust::device_pointer_cast(Out.data);
 
-    *outPtr = 0;
     thrust::inclusive_scan(outPtr + 1, outPtr + In.sizes[0] + 1, outPtr + 1);
 
     return Status::kSuccess;

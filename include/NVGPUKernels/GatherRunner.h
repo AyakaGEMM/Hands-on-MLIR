@@ -13,9 +13,6 @@
 #include <thrust/gather.h>
 #include <thrust/host_vector.h>
 
-#include <cub/device/device_reduce.cuh>
-#include <cub/device/device_scan.cuh>
-#include <cub/util_allocator.cuh>
 #include <functional>
 #include <numeric>
 #include <thrust/device_vector.h>

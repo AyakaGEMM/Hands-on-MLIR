@@ -39,3 +39,6 @@ optimized.mlir
 
 # Memo
 memo.md
+
+# nsys
+*.nsys-rep
