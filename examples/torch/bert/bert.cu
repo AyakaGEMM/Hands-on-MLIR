@@ -17,7 +17,7 @@
        (k) * (des).strides[2]])
 
 int main() {
-  constexpr int64_t bs = 1;
+  constexpr int64_t bs = 2;
   constexpr int64_t seq_len = 64;
   constexpr int64_t output_size = 30522;
   constexpr int64_t real_len = 10;

@@ -118,7 +118,7 @@ void cutlassGemmWithVarMeanF16(int64_t rankA, void *dstA, int64_t rankB,
           cutlass::layout::RowMajor, cutlass::half_t,
           cutlass::arch::OpClassTensorOp, cutlass::arch::Sm80, ThreadblockShape,
           WarpShape, InstructionShape, EpilogueFunctorOp,
-          cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<>, 2,
+          cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<>, 3,
           typename cutlass::gemm::device::DefaultGemmConfiguration<
               cutlass::arch::OpClassTensorOp, cutlass::arch::Sm80,
               cutlass::half_t, cutlass::half_t, cutlass::half_t,
@@ -164,6 +164,39 @@ void cutlassLayernormGemmF32(int64_t rankA, void *dstA, int64_t rankB,
                              void *dstVar, int64_t rankMean, void *dstMean,
                              float alpha, float beta, float eps,
                              int64_t activation) {}
+
+void cutlassLayernormGemmF16(int64_t rankA, void *dstA, int64_t rankB,
+                             void *dstB, int64_t rankC, void *dstC,
+                             int64_t rankD, void *dstD, int64_t rankVar,
+                             void *dstVar, int64_t rankMean, void *dstMean,
+                             float alpha, float beta, float eps,
+                             int64_t activation) {
+
+  using RowMajor = cutlass::layout::RowMajor;
+
+  using ThreadblockShape = cutlass::gemm::GemmShape<128, 128, 32>;
+  using WarpShape = cutlass::gemm::GemmShape<64, 64, 32>;
+  using InstructionShape = cutlass::gemm::GemmShape<16, 8, 16>;
+
+  using EpilogueFunctorOp = cutlass::epilogue::thread::LinearCombination<
+      cutlass::half_t, 128 / cutlass::sizeof_bits<cutlass::half_t>::value,
+      cutlass::half_t, cutlass::half_t>;
+
+  using GemmMainloopFusion =
+      typename cutlass::gemm::device::GemmLayernormMainloopFusion<
+          cutlass::half_t, RowMajor, cutlass::half_t, RowMajor, cutlass::half_t,
+          RowMajor, cutlass::half_t, RowMajor, cutlass::half_t,
+          cutlass::arch::OpClassTensorOp, cutlass::arch::Sm80, ThreadblockShape,
+          WarpShape, InstructionShape, EpilogueFunctorOp,
+          cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<>, 4>;
+
+  mlir::hands_on_mlir::LayernormGemmOperationRunner<GemmMainloopFusion> runner;
+
+  auto status = runner.run(rankA, dstA, rankB, dstB, rankC, dstC, rankD, dstD,
+                           rankVar, dstVar, rankMean, dstMean, alpha, beta);
+
+  assert(status == Status::kSuccess);
+}
 
 C_UnrankedMemRefType allocConstantNVGPUF32(int32_t idx) {
 

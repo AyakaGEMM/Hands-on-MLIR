@@ -168,7 +168,7 @@ public:
     auto required_workspace = op->get_workspace_size(args);
 
     if (required_workspace > device_workspace_size_) {
-      if (device_workspace_ != 0) {
+      if (device_workspace_size_ != 0) {
         cudaFree(device_workspace_);
       }
       auto error = cudaMalloc(&device_workspace_, required_workspace);
@@ -465,6 +465,148 @@ public:
 
     return Status::kSuccess;
   }
+};
+
+template <typename Operator_>
+class LayernormGemmOperationRunner : public OperationRunner {
+public:
+  using Operator = Operator_;
+  using ElementA = typename Operator::ElementA;
+  using LayoutA = typename Operator::LayoutA;
+  using ElementB = typename Operator::ElementB;
+  using LayoutB = typename Operator::LayoutB;
+  using ElementC = typename Operator::ElementC;
+  using LayoutC = typename Operator::LayoutC;
+  using ElementD = ElementC;
+  using LayoutD = LayoutC;
+  // assuming all tensors use same type for StrideIndex
+  using StrideIndex = typename Operator::LayoutA::Index;
+  using ElementAccumulator = typename Operator::ElementAccumulator;
+  using ElementCompute = typename Operator::EpilogueOutputOp::ElementCompute;
+
+  using OperatorArguments = typename Operator::Arguments;
+
+  static bool const kInternalTranspose =
+      cutlass::platform::is_same<LayoutC, cutlass::layout::ColumnMajor>::value;
+
+  LayernormGemmOperationRunner() {
+    host_workspace_ = device_workspace_ = nullptr;
+    device_workspace_size_ = 0;
+  }
+
+  Status initialize_and_update(const OperatorArguments &args) {
+    bool first_initialize = false;
+    if (host_workspace_ == nullptr) {
+      host_workspace_ = new Operator;
+      first_initialize = true;
+    }
+    Operator *op = static_cast<Operator *>(host_workspace_);
+    auto status = op->can_implement(args);
+
+    if (status != Status::kSuccess) {
+      return status;
+    }
+
+    auto required_workspace = op->get_workspace_size(args);
+
+    if (required_workspace > device_workspace_size_) {
+      if (device_workspace_size_ != 0) {
+        cudaFree(device_workspace_);
+      }
+      auto error = cudaMalloc(&device_workspace_, required_workspace);
+      assert(error == cudaSuccess);
+      device_workspace_size_ = required_workspace;
+    }
+
+    if (first_initialize) {
+      return op->initialize(args, device_workspace_);
+    } else {
+      return op->update(args);
+    }
+  }
+
+  static Status construct_arguments(int64_t rankA, void *dstA, int64_t rankB,
+                                    void *dstB, int64_t rankC, void *dstC,
+                                    int64_t rankD, void *dstD, int64_t rankVar,
+                                    void *dstVar, int64_t rankMean,
+                                    void *dstMean, float alpha, float beta,
+                                    OperatorArguments &args) {
+    auto A = convertToDynamicMemRefType<ElementA>(rankA, dstA);
+    auto B = convertToDynamicMemRefType<ElementB>(rankB, dstB);
+    auto C = convertToDynamicMemRefType<ElementC>(rankC, dstC);
+    auto D = convertToDynamicMemRefType<ElementD>(rankD, dstD);
+    auto Var = convertToDynamicMemRefType<ElementD>(rankVar, dstVar);
+    auto Mean = convertToDynamicMemRefType<ElementD>(rankMean, dstMean);
+
+    assert(A.rank == 3);
+    assert(B.rank == 3);
+    assert(C.rank == 3);
+    assert(D.rank == 3);
+
+    auto DimCompatibale = [](int64_t a, int64_t b) {
+      return a == b || a == 1 || b == 1;
+    };
+
+    assert(A.sizes[1] == C.sizes[1]);
+    assert(B.sizes[2] == C.sizes[2]);
+    assert(A.sizes[2] == B.sizes[1]);
+
+    auto M = std::max(A.sizes[1], C.sizes[1]);
+    auto N = std::max(B.sizes[2], C.sizes[2]);
+    auto K = A.sizes[2];
+    auto BatchSize = A.sizes[0];
+
+    assert(DimCompatibale(BatchSize, B.sizes[0]));
+    assert(BatchSize == C.sizes[0]);
+    assert(BatchSize == D.sizes[0]);
+    assert(C.sizes[0] == D.sizes[0]);
+    assert(C.sizes[1] == D.sizes[1]);
+    assert(C.sizes[2] == D.sizes[2]);
+
+    auto gamma = getOnePointer<ElementA>(N);
+    auto ln_beta = getZeroPointer<ElementA>(N);
+
+    args = OperatorArguments(
+        cutlass::gemm::GemmUniversalMode::kGemm, {int(M), int(N), int(K)}, 1,
+        {ElementC(alpha), ElementC(beta)}, kInternalTranspose ? B.data : A.data,
+        kInternalTranspose ? A.data : B.data, Var.data, Mean.data, gamma.get(),
+        ln_beta.get(), C.data, D.data, M * K, N * K, N, N, K, K, M * N, M * N,
+        kInternalTranspose ? N : K, K, N, N, N, N, N, N);
+
+    return Status::kSuccess;
+  }
+
+  Status run(int64_t rankA, void *dstA, int64_t rankB, void *dstB,
+             int64_t rankC, void *dstC, int64_t rankD, void *dstD,
+             int64_t rankVar, void *dstVar, int64_t rankMean, void *dstMean,
+             float alpha, float beta) {
+
+    OperatorArguments args;
+
+    auto status = construct_arguments(rankA, dstA, rankB, dstB, rankC, dstC,
+                                      rankD, dstD, rankVar, dstVar, rankMean,
+                                      dstMean, alpha, beta, args);
+    if (status != Status::kSuccess) {
+      return status;
+    }
+
+    status = initialize_and_update(args);
+    if (status != Status::kSuccess) {
+      return status;
+    }
+
+    auto op = static_cast<Operator *>(host_workspace_);
+
+    return op->run();
+  }
+
+protected:
+  void *host_workspace_;
+  void *device_workspace_;
+  size_t device_workspace_size_;
+
+public:
+  Status run() { return Status::kSuccess; }
 };
 
 template <typename ElementType> class GemmNVTERunner : public OperationRunner {

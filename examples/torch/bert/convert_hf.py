@@ -4,7 +4,7 @@ from transformers import BertConfig, BertForMaskedLM, BertTokenizer
 
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 
-bs = 1
+bs = 2
 
 text = "Hello I'm a [MASK] model."
 encoded_input = tokenizer(text, return_tensors="pt")

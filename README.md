@@ -16,7 +16,6 @@ WIP. Heavily developing in progress currently, so no document available. E2E ber
         7. sm80+ only (TE limitation)
         8. Native Linux only (TE limitation)
         9. Static shape (HOM limitation)
-        10. batch size == 1 (HOM limitation, didn't write broadcast for some op)
 + Some simple fusion pass
     + GEMM + GELU fusion
     + Packed qkv bert attention

@@ -10,6 +10,8 @@
 #include <cstdio>
 #include <cublas.h>
 #include <memory>
+#include <thrust/device_ptr.h>
+#include <thrust/fill.h>
 
 using Status = cutlass::Status;
 
@@ -177,6 +179,22 @@ template <typename T> static std::shared_ptr<T> getZeroPointer(size_t size) {
     allocedSize = size;
     checkCudaErrors(cudaMalloc(&allocPtr, sizeof(T) * allocedSize));
     checkCudaErrors(cudaMemset(allocPtr, 0, sizeof(T) * allocedSize));
+    ptr.reset(allocPtr, cudaFree);
+  }
+
+  return ptr;
+}
+
+template <typename T> static std::shared_ptr<T> getOnePointer(size_t size) {
+  static std::shared_ptr<T> ptr;
+  static size_t allocedSize = 0;
+
+  if (allocedSize < size) {
+    T *allocPtr;
+    allocedSize = size;
+    checkCudaErrors(cudaMalloc(&allocPtr, sizeof(T) * allocedSize));
+    auto thrustPtr = thrust::device_pointer_cast(allocPtr);
+    thrust::fill(thrustPtr, thrustPtr + size, T(1));
     ptr.reset(allocPtr, cudaFree);
   }
 
