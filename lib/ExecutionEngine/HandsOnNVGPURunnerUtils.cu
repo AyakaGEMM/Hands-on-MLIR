@@ -162,15 +162,13 @@ void cutlassLayernormGemmF32(int64_t rankA, void *dstA, int64_t rankB,
                              void *dstB, int64_t rankC, void *dstC,
                              int64_t rankD, void *dstD, int64_t rankVar,
                              void *dstVar, int64_t rankMean, void *dstMean,
-                             float alpha, float beta, float eps,
-                             int64_t activation) {}
+                             float alpha, float beta, int64_t activation) {}
 
 void cutlassLayernormGemmF16(int64_t rankA, void *dstA, int64_t rankB,
                              void *dstB, int64_t rankC, void *dstC,
                              int64_t rankD, void *dstD, int64_t rankVar,
                              void *dstVar, int64_t rankMean, void *dstMean,
-                             float alpha, float beta, float eps,
-                             int64_t activation) {
+                             float alpha, float beta, int64_t activation) {
 
   using RowMajor = cutlass::layout::RowMajor;
 

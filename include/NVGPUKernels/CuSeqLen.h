@@ -31,6 +31,7 @@ public:
   // To-do: I use thrust here only for fast development. Could protentially be
   // fused into a single kernel or at least use multi stream to improve the
   // performance.
+  // To-do(short-term plan): use reduce by key
   Status run(int rankIn, void *desIn, int rankOut, void *desOut) {
     auto In = convertToDynamicMemRefType<InputElementType>(rankIn, desIn);
     auto Out = convertToDynamicMemRefType<int32_t>(rankOut, desOut);

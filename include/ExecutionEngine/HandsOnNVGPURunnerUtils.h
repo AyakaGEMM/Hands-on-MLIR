@@ -78,14 +78,14 @@ HANDS_ON_MLIR_RUNNERUTILS_EXPORT void
 cutlassLayernormGemmF32(int64_t rankA, void *dstA, int64_t rankB, void *dstB,
                         int64_t rankC, void *dstC, int64_t rankD, void *dstD,
                         int64_t rankVar, void *dstVar, int64_t rankMean,
-                        void *dstMean, float alpha, float beta, float eps,
+                        void *dstMean, float alpha, float beta,
                         int64_t activation);
 
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT void
 cutlassLayernormGemmF16(int64_t rankA, void *dstA, int64_t rankB, void *dstB,
                         int64_t rankC, void *dstC, int64_t rankD, void *dstD,
                         int64_t rankVar, void *dstVar, int64_t rankMean,
-                        void *dstMean, float alpha, float beta, float eps,
+                        void *dstMean, float alpha, float beta,
                         int64_t activation);
 
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT

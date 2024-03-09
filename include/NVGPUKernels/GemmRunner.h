@@ -556,22 +556,25 @@ public:
     auto K = A.sizes[2];
     auto BatchSize = A.sizes[0];
 
-    assert(DimCompatibale(BatchSize, B.sizes[0]));
+    assert(B.sizes[0] == 1);
     assert(BatchSize == C.sizes[0]);
     assert(BatchSize == D.sizes[0]);
     assert(C.sizes[0] == D.sizes[0]);
     assert(C.sizes[1] == D.sizes[1]);
     assert(C.sizes[2] == D.sizes[2]);
 
-    auto gamma = getOnePointer<ElementA>(N);
-    auto ln_beta = getZeroPointer<ElementA>(N);
+    auto gamma = getOnePointer<ElementA>(K);
+    auto ln_beta = getZeroPointer<ElementA>(K);
 
     args = OperatorArguments(
-        cutlass::gemm::GemmUniversalMode::kGemm, {int(M), int(N), int(K)}, 1,
+        cutlass::gemm::GemmUniversalMode::kGemm,
+        {int(M * BatchSize), int(N), int(K)}, 1,
         {ElementC(alpha), ElementC(beta)}, kInternalTranspose ? B.data : A.data,
         kInternalTranspose ? A.data : B.data, Var.data, Mean.data, gamma.get(),
-        ln_beta.get(), C.data, D.data, M * K, N * K, N, N, K, K, M * N, M * N,
-        kInternalTranspose ? N : K, K, N, N, N, N, N, N);
+        ln_beta.get(), C.data, D.data, M * BatchSize * K, N * K, M * BatchSize,
+        M * BatchSize, K, K, BatchSize * M * N, BatchSize * M * N,
+        kInternalTranspose ? N : K, N, M * BatchSize, M * BatchSize, K, K, N,
+        N);
 
     return Status::kSuccess;
   }
