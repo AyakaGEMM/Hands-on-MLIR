@@ -45,7 +45,11 @@ if(ENABLE_CUDA)
     LINK_LIBS
     WeightsEngine
     nvToolsExt
-    dl)
-  target_compile_options(hands_on_mlir_nvgpu_runner_utils PRIVATE -fexceptions)
-  # add_subdirectory(NVGPUKernels)
+    cublas
+    dl
+    GemmManifestAndProfiler)
+  target_compile_options(hands_on_mlir_nvgpu_runner_utils PRIVATE -fexceptions
+                                                                  -lcublas)
+  target_link_options(hands_on_mlir_nvgpu_runner_utils PRIVATE -lcublas)
+  add_subdirectory(NVGPUKernels)
 endif()

@@ -91,13 +91,6 @@ public:
     }
   };
 
-  template <> struct Argument<C_UnrankedMemRefType> {
-    static void pack(SmallVectorImpl<void *> &args, C_UnrankedMemRefType &val) {
-      args.emplace_back(&val.rank);
-      args.emplace_back(&val.descriptor);
-    }
-  };
-
   template <typename T> struct Argument<PackedArguments<T>> {
     static void pack(SmallVectorImpl<void *> &args, PackedArguments<T> &val) {
       for (size_t i = 0; i < val.argNum; i++) {
@@ -175,6 +168,13 @@ private:
   llvm::Expected<InvokeFn> lookupPacked(StringRef name) const;
 
   llvm::Expected<void *> lookupHandle(StringRef name) const;
+};
+
+template <> struct ExecutionEngine::Argument<C_UnrankedMemRefType> {
+  static void pack(SmallVectorImpl<void *> &args, C_UnrankedMemRefType &val) {
+    args.emplace_back(&val.rank);
+    args.emplace_back(&val.descriptor);
+  }
 };
 
 } // namespace hands_on_mlir

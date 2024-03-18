@@ -17,7 +17,7 @@
        (k) * (des).strides[2]])
 
 int main() {
-  constexpr int64_t bs = 2;
+  constexpr int64_t bs = 8;
   constexpr int64_t seq_len = 64;
   constexpr int64_t output_size = 30522;
   constexpr int64_t real_len = 10;
@@ -83,6 +83,11 @@ int main() {
     llvm::handleAllErrors(std::move(res));
   }
 
+  std::cout << "First invoke OK. " << std::endl;
+
+  int aa = 10;
+  int cnt = 0;
+
   for (int i = 0; i < 10; i++) {
     res = e.invoke("forward", input_ids.rank, input_ids.descriptor, mask.rank,
                    mask.descriptor, type_id.rank, type_id.descriptor,
@@ -112,7 +117,8 @@ int main() {
   float msecTotal = 0;
   checkCudaErrors(cudaEventElapsedTime(&msecTotal, start, stop));
 
-  std::cout << "E2E latency: " << msecTotal / 1000 / 1000 << "s" << std::endl;
+  std::cout << "E2E latency: " << msecTotal / 1000.0 / 1000.0 << "s"
+            << std::endl;
 
   auto c = DynamicMemRefType<half>(b);
   std::cout << c.rank << std::endl;
@@ -136,6 +142,11 @@ int main() {
         if (std::abs(float(RowMajor(data, c, i, j, k) -
                            RowMajor(thing, c, i, j, k))) > 1e-2) {
           std::cout << "Not ok" << std::endl;
+          std::cout << float(RowMajor(data, c, i, j, k)) << " "
+                    << float(RowMajor(thing, c, i, j, k)) << std::endl;
+          if (aa == cnt)
+            exit(0);
+          cnt++;
         }
       }
     }

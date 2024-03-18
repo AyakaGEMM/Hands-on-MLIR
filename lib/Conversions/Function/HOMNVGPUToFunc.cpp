@@ -28,6 +28,7 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/APInt.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -44,6 +45,39 @@ namespace hands_on_mlir {
 #include "Conversions/Function/Passes.h.inc"
 
 namespace {
+
+// A matmul-like op should has alpha beta attr.
+template <typename MatmulLikeOperation>
+inline bool canMatmulReuseC(MatmulLikeOperation op, int posC = 2) {
+  Value c = op.getOperand(posC);
+  auto cDefiningOp = c.getDefiningOp();
+  if (cDefiningOp && dyn_cast<hom::DummyTensorOp>(cDefiningOp)) {
+    return false;
+  }
+  if (op.getBeta().convertToFloat() == 0) {
+    return true;
+  }
+  bool hasOtherUser = false;
+  bool atThisOp = true;
+
+  op->getBlock()->walk([&op, &atThisOp, &hasOtherUser, &c](Operation *visit) {
+    if (atThisOp) {
+      return;
+    }
+    if (visit == op) {
+      atThisOp = false;
+      return;
+    }
+
+    for (const auto &operand : visit->getOperands()) {
+      if (operand == c) {
+        hasOtherUser = true;
+      }
+    }
+  });
+
+  return !hasOtherUser;
+}
 
 struct HOMNVGPUToFuncPass : impl::HOMNVGPUToFuncPassBase<HOMNVGPUToFuncPass> {
   void runOnOperation() final;
@@ -68,37 +102,7 @@ struct ConvertHOMNVGPUMatmulOp
     Value c = op.getOperand(2), d;
     auto cDefiningOp = c.getDefiningOp();
 
-    auto canReuseC = [&]() {
-      if (cDefiningOp && dyn_cast<hom::DummyTensorOp>(cDefiningOp)) {
-        return false;
-      }
-      if (op.getBeta().convertToFloat() == 0) {
-        return true;
-      }
-      bool hasOtherUser = false;
-      bool atThisOp = true;
-
-      op->getBlock()->walk(
-          [&op, &atThisOp, &hasOtherUser, &c](Operation *visit) {
-            if (atThisOp) {
-              return;
-            }
-            if (visit == op) {
-              atThisOp = false;
-              return;
-            }
-
-            for (const auto &operand : visit->getOperands()) {
-              if (operand == c) {
-                hasOtherUser = true;
-              }
-            }
-          });
-
-      return !hasOtherUser;
-    };
-
-    if (canReuseC()) {
+    if (canMatmulReuseC(op)) {
       d = c;
     } else {
       func::FuncOp allocFn;
@@ -133,11 +137,16 @@ struct ConvertHOMNVGPUMatmulOp
     }
 
     func::FuncOp funcOp;
+    auto kernelIdx = op.getKernelName();
 
     if (returnType.getElementType().isF32()) {
       funcOp = lookupOrCreateGemmNVGPUF32Fn(moduleOp);
     } else if (returnType.getElementType().isF16()) {
-      funcOp = lookupOrCreateGemmNVGPUF16Fn(moduleOp);
+      if (kernelIdx > 0) {
+        funcOp = lookupOrCreateCutlassGemmNVGPUF16Fn(moduleOp);
+      } else {
+        funcOp = lookupOrCreateGemmNVGPUF16Fn(moduleOp);
+      }
     } else {
       llvm_unreachable("Not good.");
     }
@@ -154,6 +163,12 @@ struct ConvertHOMNVGPUMatmulOp
     auto transB = rewriter.create<arith::ConstantIntOp>(loc, op.getTransb(),
                                                         rewriter.getI1Type());
 
+    auto kernelIdxConst = rewriter.create<arith::ConstantIntOp>(
+        loc, kernelIdx, rewriter.getIntegerType(32));
+
+    auto splitKFactorIdxConst = rewriter.create<arith::ConstantIntOp>(
+        loc, op.getSplitKFactor(), rewriter.getIntegerType(32));
+
     SmallVector<Value> operands = {op.getOperand(0),
                                    transA.getResult(),
                                    op.getOperand(1),
@@ -162,12 +177,216 @@ struct ConvertHOMNVGPUMatmulOp
                                    d,
                                    act.getResult(),
                                    alpha.getResult(),
-                                   beta.getResult()};
+                                   beta.getResult(),
+                                   kernelIdxConst.getResult(),
+                                   splitKFactorIdxConst.getResult()};
     rewriter.create<func::CallOp>(op.getLoc(), funcOp, operands);
 
     while (!op->getUses().empty()) {
       op->getUses().begin()->set(d);
     }
+
+    d.setType(UnrankedMemRefType::get(returnType.getElementType(), 0));
+
+    rewriter.eraseOp(op);
+
+    return success();
+  }
+};
+
+struct ConvertHOMNVGPUMatmulWithVarMeanOp
+    : public OpConversionPattern<homnvgpu::MatmulWithVarMeanOp> {
+  using OpConversionPattern<homnvgpu::MatmulWithVarMeanOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(homnvgpu::MatmulWithVarMeanOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto loc = op->getLoc();
+    auto moduleOp = op->getParentOfType<ModuleOp>();
+
+    auto returnType = op.getOutput().getType();
+    Value c = op.getOperand(2), d;
+    auto cDefiningOp = c.getDefiningOp();
+
+    // Should be grep from ThreadblockShape::kM
+    auto kM = 128;
+    Value var, mean;
+
+    if (returnType.getElementType().isF16()) {
+      auto size = rewriter.create<arith::ConstantIntOp>(
+          loc,
+          ((returnType.getShape()[2] + kM - 1) / kM) * returnType.getShape()[0],
+          32);
+
+      auto allocVarMeanFn = lookupOrCreateAlloc1DMemRefNVGPUF16Fn(moduleOp);
+      SmallVector<Value> allocOperands = {size.getResult()};
+      auto allocCaller =
+          rewriter.create<func::CallOp>(loc, allocVarMeanFn, allocOperands);
+      var = allocCaller->getResult(0);
+
+      allocVarMeanFn = lookupOrCreateAlloc1DMemRefNVGPUF16Fn(moduleOp);
+      allocOperands = {size.getResult()};
+      allocCaller =
+          rewriter.create<func::CallOp>(loc, allocVarMeanFn, allocOperands);
+
+      mean = allocCaller->getResult(0);
+    } else {
+      llvm_unreachable("Not good.");
+    }
+
+    if (canMatmulReuseC(op)) {
+      d = c;
+    } else {
+      func::FuncOp allocFn;
+
+      if (returnType.getElementType().isF16()) {
+        allocFn = lookupOrCreateAlloc3DMemRefNVGPUF16Fn(moduleOp);
+      } else {
+        llvm_unreachable("Not good.");
+      }
+
+      // To-do: Stupid Static Shape Inference Here. Should convert to dynamic
+      // shape if I have time.
+      auto A = rewriter.create<arith::ConstantIntOp>(
+          loc, returnType.getShape()[0], 32);
+      auto B = rewriter.create<arith::ConstantIntOp>(
+          loc, returnType.getShape()[1], 32);
+      auto C = rewriter.create<arith::ConstantIntOp>(
+          loc, returnType.getShape()[2], 32);
+
+      SmallVector<Value> allocOperands = {A.getResult(), B.getResult(),
+                                          C.getResult()};
+      auto allocCaller =
+          rewriter.create<func::CallOp>(loc, allocFn, allocOperands);
+
+      d = allocCaller.getResult(0);
+
+      if (cDefiningOp && dyn_cast<hom::DummyTensorOp>(cDefiningOp)) {
+        c = d;
+      }
+    }
+
+    func::FuncOp funcOp;
+
+    if (returnType.getElementType().isF16()) {
+      funcOp = lookupOrCreateGemmWithVarMeanNVGPUF16Fn(moduleOp);
+    } else {
+      llvm_unreachable("Not good.");
+    }
+
+    auto alpha = rewriter.create<arith::ConstantFloatOp>(loc, op.getAlpha(),
+                                                         rewriter.getF32Type());
+    auto beta = rewriter.create<arith::ConstantFloatOp>(loc, op.getBeta(),
+                                                        rewriter.getF32Type());
+    auto eps = rewriter.create<arith::ConstantFloatOp>(loc, op.getEps(),
+                                                       rewriter.getF32Type());
+
+    assert(op.getAct() == 0);
+    assert(op.getTransa() == false);
+    assert(op.getTransb() == false);
+
+    SmallVector<Value> operands = {
+        op.getOperand(0), op.getOperand(1), c, d, var, mean, alpha.getResult(),
+        beta.getResult(), eps.getResult()};
+    rewriter.create<func::CallOp>(op.getLoc(), funcOp, operands);
+
+    auto updateUses = [](Value oldVal, Value newVal) {
+      while (!oldVal.getUses().empty()) {
+        oldVal.getUses().begin()->set(newVal);
+      }
+    };
+
+    updateUses(op.getVar(), var);
+    updateUses(op.getMean(), mean);
+    updateUses(op.getOutput(), d);
+
+    d.setType(UnrankedMemRefType::get(returnType.getElementType(), 0));
+
+    rewriter.eraseOp(op);
+
+    return success();
+  }
+};
+
+struct ConvertHOMNVGPULayernormMatmulOp
+    : public OpConversionPattern<homnvgpu::LayernormMatmulOp> {
+  using OpConversionPattern<homnvgpu::LayernormMatmulOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(homnvgpu::LayernormMatmulOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto loc = op->getLoc();
+    auto moduleOp = op->getParentOfType<ModuleOp>();
+
+    auto returnType = op.getOutput().getType();
+    Value c = op.getOperand(2), d;
+    auto cDefiningOp = c.getDefiningOp();
+
+    if (canMatmulReuseC(op)) {
+      d = c;
+    } else {
+      func::FuncOp allocFn;
+
+      if (returnType.getElementType().isF16()) {
+        allocFn = lookupOrCreateAlloc3DMemRefNVGPUF16Fn(moduleOp);
+      } else {
+        llvm_unreachable("Not good.");
+      }
+
+      // To-do: Stupid Static Shape Inference Here. Should convert to dynamic
+      // shape if I have time.
+      auto A = rewriter.create<arith::ConstantIntOp>(
+          loc, returnType.getShape()[0], 32);
+      auto B = rewriter.create<arith::ConstantIntOp>(
+          loc, returnType.getShape()[1], 32);
+      auto C = rewriter.create<arith::ConstantIntOp>(
+          loc, returnType.getShape()[2], 32);
+
+      SmallVector<Value> allocOperands = {A.getResult(), B.getResult(),
+                                          C.getResult()};
+      auto allocCaller =
+          rewriter.create<func::CallOp>(loc, allocFn, allocOperands);
+
+      d = allocCaller.getResult(0);
+
+      if (cDefiningOp && dyn_cast<hom::DummyTensorOp>(cDefiningOp)) {
+        c = d;
+      }
+    }
+
+    func::FuncOp funcOp;
+
+    if (returnType.getElementType().isF16()) {
+      funcOp = lookupOrCreateLayernormGemmNVGPUF16Fn(moduleOp);
+    } else {
+      llvm_unreachable("Not good.");
+    }
+
+    auto alpha = rewriter.create<arith::ConstantFloatOp>(loc, op.getAlpha(),
+                                                         rewriter.getF32Type());
+    auto beta = rewriter.create<arith::ConstantFloatOp>(loc, op.getBeta(),
+                                                        rewriter.getF32Type());
+
+    assert(op.getTransa() == false);
+    assert(op.getTransb() == false);
+
+    SmallVector<Value> operands = {op.getOperand(0),
+                                   op.getOperand(1),
+                                   c,
+                                   d,
+                                   op.getOperand(3),
+                                   op.getOperand(4),
+                                   alpha.getResult(),
+                                   beta.getResult()};
+    rewriter.create<func::CallOp>(op.getLoc(), funcOp, operands);
+
+    auto updateUses = [](Value oldVal, Value newVal) {
+      while (!oldVal.getUses().empty()) {
+        oldVal.getUses().begin()->set(newVal);
+      }
+    };
+
+    updateUses(op.getOutput(), d);
 
     d.setType(UnrankedMemRefType::get(returnType.getElementType(), 0));
 
@@ -542,11 +761,12 @@ void HOMNVGPUToFuncPass::runOnOperation() {
            typeConverter.isLegal(&op.getBody());
   });
 
-  convPatterns.add<ConvertHOMNVGPUMatmulOp, ConvertHOMConstantOp,
-                   ConvertHOMNVGPUBertMhaOp, ConvertHOMNVGPULayernormOp,
-                   ConvertHOMNVGPUAddOp, ConvertHOMNVGPUGatherOp,
-                   ConvertHOMDummyTensorOp, ConvertHOMNVGPUCuSeqLenOp>(
-      typeConverter, context);
+  convPatterns.add<
+      ConvertHOMNVGPUMatmulOp, ConvertHOMConstantOp, ConvertHOMNVGPUBertMhaOp,
+      ConvertHOMNVGPULayernormOp, ConvertHOMNVGPUAddOp, ConvertHOMNVGPUGatherOp,
+      ConvertHOMNVGPULayernormMatmulOp, ConvertHOMNVGPUMatmulWithVarMeanOp,
+      ConvertHOMDummyTensorOp, ConvertHOMNVGPUCuSeqLenOp>(typeConverter,
+                                                          context);
 
   target.addLegalDialect<func::FuncDialect, arith::ArithDialect>();
   target.addIllegalDialect<hom::HOMDialect, homnvgpu::HOMNVGPUDialect>();

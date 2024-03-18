@@ -2,6 +2,10 @@
 
 #include "NVGPUKernels/OperationRunner.h"
 #include "NVGPUKernels/Utils.h"
+#include "thrust/iterator/counting_iterator.h"
+#include "thrust/iterator/discard_iterator.h"
+#include "thrust/iterator/transform_iterator.h"
+#include "thrust/reduce.h"
 #include <cstdint>
 #include <cuda_runtime_api.h>
 
@@ -27,6 +31,25 @@ public:
     }
   };
 
+  struct MakeKey : public std::unary_function<int64_t, int64_t> {
+
+    int64_t row_length_;
+
+    MakeKey(int64_t row_length) : row_length_(row_length) {}
+
+    __host__ __device__ constexpr int64_t operator()(const int64_t &x) const {
+      return (x / row_length_) & 1;
+    }
+  };
+
+  template <typename Arg, typename Result>
+  struct Cast : public std::unary_function<Arg, Result> {
+
+    __host__ __device__ constexpr Result operator()(const Arg &x) const {
+      return Result(x);
+    }
+  };
+
 public:
   // To-do: I use thrust here only for fast development. Could protentially be
   // fused into a single kernel or at least use multi stream to improve the
@@ -36,32 +59,28 @@ public:
     auto In = convertToDynamicMemRefType<InputElementType>(rankIn, desIn);
     auto Out = convertToDynamicMemRefType<int32_t>(rankOut, desOut);
 
-    checkCudaErrors(cudaStreamSynchronize(nullptr));
-
     auto inTotlaSize = std::accumulate(In.sizes, In.sizes + rankIn, 1,
                                        std::multiplies<int64_t>());
 
     assert(In.sizes[0] + 1 == Out.sizes[0]);
     assert(In.rank == 2);
     assert(Out.rank == 1);
-    checkCudaErrors(cudaMemsetAsync(
+    checkCudaErrors(cudaMemset(
         Out.data, 0, sizeof(int32_t))); // Use memset to avoid malloc by thrust
 
-    for (int64_t i = 0; i < In.sizes[0]; i++) {
-      auto inPtr = thrust::device_pointer_cast(In.data + i * In.strides[0]);
-      auto outPtr =
-          thrust::device_pointer_cast(Out.data + (i + 1) * Out.strides[0]);
-
-      *outPtr = thrust::reduce(inPtr, inPtr + In.strides[0]);
-    }
-
-    checkCudaErrors(cudaStreamSynchronize(nullptr));
-
+    auto key = thrust::make_transform_iterator(
+        thrust::make_counting_iterator<int64_t>(0), MakeKey(In.sizes[1]));
+    auto inPtr = thrust::device_pointer_cast(In.data);
+    auto in = thrust::make_transform_iterator(
+        inPtr, Cast<InputElementType, int32_t>());
     auto outPtr = thrust::device_pointer_cast(Out.data);
+
+    thrust::reduce_by_key(key, key + inTotlaSize, in,
+                          thrust::make_discard_iterator(), outPtr + 1);
 
     thrust::inclusive_scan(outPtr + 1, outPtr + In.sizes[0] + 1, outPtr + 1);
 
-    checkCudaErrors(cudaStreamSynchronize(nullptr));
+    checkCudaErrors(cudaGetLastError());
 
     return Status::kSuccess;
   }

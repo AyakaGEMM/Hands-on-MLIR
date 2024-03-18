@@ -16,12 +16,15 @@ inline void registerAllPasses() {
   registerHOMToHOMNVGPUPass();
   registerMatMulCPUOptimizePass();
   registerUnifyLLVMFuncInterfacePass();
+  registerHOMFuncToLLVMPipelines();
   hom::registerHOMFusionPass();
   hom::registerHOMSerializeWeightPass();
   hom::registerTosaToHOMPass();
   hom::registerTosaConstantFoldingPass();
   hom::registerTosaToHOMPipelines();
   homnvgpu::registerHOMNVGPUFusionPass();
+  homnvgpu::registerHOMNVGPUAutotunePass();
+  homnvgpu::registerHOMNVGPULegalizeGemmPass();
 }
 } // namespace hands_on_mlir
 } // namespace mlir

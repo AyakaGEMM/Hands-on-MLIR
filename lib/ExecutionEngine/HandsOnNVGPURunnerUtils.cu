@@ -4,25 +4,23 @@
 #include "NVGPUKernels/CuSeqLen.h"
 #include "NVGPUKernels/ElementwiseRunner.h"
 #include "NVGPUKernels/GatherRunner.h"
+#include "NVGPUKernels/GemmManifest.h"
 #include "NVGPUKernels/GemmRunner.h"
 #include "NVGPUKernels/Layernorm.h"
+#include "NVGPUKernels/LayernormGemmRunner.h"
 #include "NVGPUKernels/Utils.h"
 #include "NVGPUKernels/gemm_with_epilogue_visitor.h"
-#include "cute/numeric/int.hpp"
+#include "cublas_v2.h"
 #include "cutlass/arch/arch.h"
 #include "cutlass/arch/mma.h"
-#include "cutlass/cutlass.h"
 #include "cutlass/gemm/device/default_gemm_configuration.h"
+#include "cutlass/gemm/device/gemm_universal_adapter.h"
 #include "cutlass/gemm/kernel/default_gemm.h"
 #include "cutlass/gemm/kernel/default_gemm_universal.h"
-#include "cutlass/gemm/kernel/default_gemm_universal_with_visitor.h"
-#include "cutlass/gemm/kernel/gemm_universal_with_visitor.h"
 #include "cutlass/gemm/threadblock/threadblock_swizzle.h"
 #include "cutlass/half.h"
 #include "cutlass/layout/matrix.h"
-#include "cutlass/tensor_ref.h"
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
-#include "llvm/Support/ErrorHandling.h"
 #include <cassert>
 #include <complex.h>
 #include <cstddef>
@@ -45,13 +43,45 @@ allocFnType nvgpuAllocer = [](void **ptr, size_t size) {
   std::cout << "Size: " << size << std::endl;
 };
 
+template <typename T>
+static bool checkSame(int64_t rankA, void *desA, int64_t rankB, void *desB) {
+  if (rankA != rankB) {
+    std::cout << "Shape not same" << rankA << " " << rankB << std::endl;
+    return false;
+  }
+
+  auto a = convertToDynamicMemRefType<T>(rankA, desA);
+  auto b = convertToDynamicMemRefType<T>(rankB, desB);
+
+  for (int i = 0; i < rankA; i++) {
+    if (a.sizes[i] != b.sizes[i]) {
+      return false;
+    }
+
+    if (a.strides[i] != b.strides[i]) {
+      return false;
+    }
+  }
+
+  auto totalSize =
+      std::accumulate(a.sizes, a.sizes + rankA, 1, std::multiplies<>());
+
+  for (int i = 0; i < totalSize; i++) {
+    if (a.data[i] != b.data[i]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 extern "C" {
 
 void cutlassGemmF32(int64_t rankA, void *dstA, bool transa, int64_t rankB,
                     void *dstB, bool transb, int64_t rankC, void *dstC,
                     int64_t rankD, void *dstD, int64_t activation, float alpha,
                     float beta) {
-
+  using namespace mlir::hands_on_mlir::homnvgpu_kernel;
   // Ideally, we should use manifest with generated template here.
   using RowMajor = cutlass::layout::RowMajor;
   using CutlassGemm =
@@ -62,35 +92,63 @@ void cutlassGemmF32(int64_t rankA, void *dstA, bool transa, int64_t rankB,
                                   float,     // Data-type of C matrix
                                   RowMajor>; // Layout of C matrix
 
-  mlir::hands_on_mlir::GemmOperationRunner<CutlassGemm> gemm;
+  // GemmOperationRunner<CutlassGemm> gemm;
 
-  auto status =
-      gemm.run(rankA, dstA, rankB, dstB, rankC, dstC, rankD, dstD, alpha, beta);
+  // auto status =
+  //     gemm.run(rankA, dstA, rankB, dstB, rankC, dstC, rankD, dstD, alpha,
+  //     beta);
 
-  assert(status == cutlass::Status::kSuccess);
+  // assert(status == cutlass::Status::kSuccess);
 }
 
 void cutlassGemmF16(int64_t rankA, void *dstA, bool transa, int64_t rankB,
                     void *dstB, bool transb, int64_t rankC, void *dstC,
                     int64_t rankD, void *dstD, int64_t activation, float alpha,
-                    float beta) {
+                    float beta, int32_t gemmNum, int32_t splitKFactor) {
+  using namespace mlir::hands_on_mlir::homnvgpu_kernel;
 
-  // Ideally, we should use manifest with generated template here.
-  using RowMajor = cutlass::layout::RowMajor;
-  using CutlassGemm =
-      cutlass::gemm::device::Gemm<cutlass::half_t, // Data-type of A matrix
-                                  RowMajor,        // Layout of A matrix
-                                  cutlass::half_t, // Data-type of B matrix
-                                  RowMajor,        // Layout of B matrix
-                                  cutlass::half_t, // Data-type of C matrix
-                                  RowMajor>;       // Layout of C matrix
+  // auto gemm = manifest[gemmNum - 1].get();
 
-  mlir::hands_on_mlir::GemmOperationRunner<CutlassGemm> gemm;
+  // auto status = gemm->run(rankA, dstA, rankB, dstB, rankC, dstC, rankD, dstD,
+  //                         alpha, beta, 1);
 
-  auto status =
-      gemm.run(rankA, dstA, rankB, dstB, rankC, dstC, rankD, dstD, alpha, beta);
+  // assert(status == cutlass::Status::kSuccess);
+  cublasHandle_t handle;
+  checkCuBlasErrors(cublasCreate(&handle));
 
-  assert(status == cutlass::Status::kSuccess);
+  auto a = static_cast<StridedMemRefType<half, 3> *>(dstA);
+  auto b = static_cast<StridedMemRefType<half, 3> *>(dstB);
+  auto c = static_cast<StridedMemRefType<half, 3> *>(dstC);
+  auto d = allocHelper<half, 3>({c->sizes[0], c->sizes[1], c->sizes[2]},
+                                nvgpuAllocer);
+  auto desD = static_cast<StridedMemRefType<half, 3> *>(d.descriptor);
+  auto trueD = static_cast<StridedMemRefType<half, 3> *>(dstD);
+
+  cudaMemcpy(desD->data, c->data,
+             sizeof(half) * c->sizes[0] * c->sizes[1] * c->sizes[2],
+             cudaMemcpyDeviceToDevice);
+
+  half al = alpha, be = beta;
+
+  checkCudaErrors(cudaStreamSynchronize(nullptr));
+
+  cublasHgemm(handle, transa ? CUBLAS_OP_T : CUBLAS_OP_N,
+              transb ? CUBLAS_OP_T : CUBLAS_OP_N, b->sizes[2],
+              a->sizes[0] * a->sizes[1], a->sizes[2], &al, b->data, b->sizes[2],
+              a->data, a->sizes[2], &be, desD->data, desD->sizes[2]);
+
+  checkCudaErrors(cudaStreamSynchronize(nullptr));
+
+  // checkSame<half>(3, d.descriptor, 3, dstD);
+
+  cudaMemcpy(desD->data, trueD->data,
+             sizeof(half) * c->sizes[0] * c->sizes[1] * c->sizes[2],
+             cudaMemcpyDeviceToDevice);
+
+  cudaFree(desD->data);
+  free(desD);
+
+  cublasDestroy(handle);
 }
 
 void cutlassGemmWithVarMeanF16(int64_t rankA, void *dstA, int64_t rankB,
@@ -99,6 +157,7 @@ void cutlassGemmWithVarMeanF16(int64_t rankA, void *dstA, int64_t rankB,
                                void *dstVar, int64_t rankMean, void *dstMean,
                                float alpha, float beta, int64_t activation,
                                float eps) {
+  using namespace mlir::hands_on_mlir::homnvgpu_kernel;
 
   using EpilogueFunctorOp = cutlass::epilogue::thread::LinearCombination<
       cutlass::half_t, 128 / cutlass::sizeof_bits<cutlass::half_t>::value,
@@ -124,7 +183,7 @@ void cutlassGemmWithVarMeanF16(int64_t rankA, void *dstA, int64_t rankB,
               cutlass::half_t, cutlass::half_t, cutlass::half_t,
               cutlass::half_t>::Operator>::GemmKernel;
 
-  using EpilogueVisitor = mlir::hands_on_mlir::EpilogueVisitorLayerNorm<
+  using EpilogueVisitor = EpilogueVisitorLayerNorm<
       ThreadblockShape, DefaultGemmKernel::kThreadCount,
       DefaultGemmKernel::Epilogue::OutputTileIterator,
       DefaultGemmKernel::Epilogue::AccumulatorFragmentIterator::AccumulatorTile,
@@ -138,7 +197,7 @@ void cutlassGemmWithVarMeanF16(int64_t rankA, void *dstA, int64_t rankB,
   using Gemm = cutlass::gemm::kernel::GemmWithEpilogueVisitorFromExample<
       DefaultGemmKernel::Mma, Epilogue, DefaultGemmKernel::ThreadblockSwizzle>;
 
-  mlir::hands_on_mlir::GemmOperationWithVarMeanRunner<Gemm> gemm;
+  GemmOperationWithVarMeanRunner<Gemm> gemm;
 
   auto status = gemm.run(rankA, dstA, rankB, dstB, rankC, dstC, rankD, dstD,
                          rankVar, dstVar, rankMean, dstMean, alpha, beta, eps);
@@ -149,13 +208,70 @@ void cutlassGemmWithVarMeanF16(int64_t rankA, void *dstA, int64_t rankB,
 void nvteGemmF16(int64_t rankA, void *dstA, bool transa, int64_t rankB,
                  void *dstB, bool transb, int64_t rankC, void *dstC,
                  int64_t rankD, void *dstD, int64_t activation, float alpha,
-                 float beta) {
-  mlir::hands_on_mlir::GemmNVTERunner<half> gemm;
+                 float beta, int32_t, int32_t) {
+  using namespace mlir::hands_on_mlir::homnvgpu_kernel;
+  GemmNVTERunner<half> gemm;
+
+  checkCudaErrors(cudaStreamSynchronize(nullptr));
 
   auto status = gemm.run(rankA, dstA, transa, rankB, dstB, transb, rankC, dstC,
                          rankD, dstD, activation, alpha, beta);
 
-  assert(status == cutlass::Status::kSuccess);
+  return;
+
+  cublasHandle_t handle;
+  checkCuBlasErrors(cublasCreate(&handle));
+
+  auto a = static_cast<StridedMemRefType<half, 3> *>(dstA);
+  auto b = static_cast<StridedMemRefType<half, 3> *>(dstB);
+  auto c = static_cast<StridedMemRefType<half, 3> *>(dstC);
+  auto d = allocHelper<half, 3>({c->sizes[0], c->sizes[1], c->sizes[2]},
+                                nvgpuAllocer);
+  auto desD = static_cast<StridedMemRefType<half, 3> *>(d.descriptor);
+  auto trueD = static_cast<StridedMemRefType<half, 3> *>(dstD);
+
+  cudaMemcpy(desD->data, c->data,
+             sizeof(half) * c->sizes[0] * c->sizes[1] * c->sizes[2],
+             cudaMemcpyDeviceToDevice);
+
+  half al = alpha, be = beta;
+
+  checkCudaErrors(cudaStreamSynchronize(nullptr));
+
+  if (desD->sizes[2] != b->sizes[1]) {
+    for (int i = 0; i < 3; i++) {
+      std::cout << a->sizes[i] << " ";
+    }
+    std::cout << std::endl;
+    for (int i = 0; i < 3; i++) {
+      std::cout << b->sizes[i] << " ";
+    }
+    std::cout << std::endl;
+    for (int i = 0; i < 3; i++) {
+      std::cout << c->sizes[i] << " ";
+    }
+    std::cout << std::endl;
+    exit(0);
+  }
+
+  cublasHgemm(handle, CUBLAS_OP_T, CUBLAS_OP_N, b->sizes[1],
+              a->sizes[0] * a->sizes[1], a->sizes[2], &al, b->data, b->sizes[2],
+              a->data, a->sizes[2], &be, desD->data, desD->sizes[2]);
+
+  checkCudaErrors(cudaStreamSynchronize(nullptr));
+
+  // checkSame<half>(3, d.descriptor, 3, dstD);
+
+  cudaMemcpy(trueD->data, desD->data,
+             sizeof(half) * c->sizes[0] * c->sizes[1] * c->sizes[2],
+             cudaMemcpyDeviceToDevice);
+
+  cudaFree(desD->data);
+  free(desD);
+
+  cublasDestroy(handle);
+
+  // assert(status == cutlass::Status::kSuccess);
 }
 
 void cutlassLayernormGemmF32(int64_t rankA, void *dstA, int64_t rankB,
@@ -169,6 +285,7 @@ void cutlassLayernormGemmF16(int64_t rankA, void *dstA, int64_t rankB,
                              int64_t rankD, void *dstD, int64_t rankVar,
                              void *dstVar, int64_t rankMean, void *dstMean,
                              float alpha, float beta, int64_t activation) {
+  using namespace mlir::hands_on_mlir::homnvgpu_kernel;
 
   using RowMajor = cutlass::layout::RowMajor;
 
@@ -188,7 +305,7 @@ void cutlassLayernormGemmF16(int64_t rankA, void *dstA, int64_t rankB,
           WarpShape, InstructionShape, EpilogueFunctorOp,
           cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<>, 4>;
 
-  mlir::hands_on_mlir::LayernormGemmOperationRunner<GemmMainloopFusion> runner;
+  LayernormGemmOperationRunner<GemmMainloopFusion> runner;
 
   auto status = runner.run(rankA, dstA, rankB, dstB, rankC, dstC, rankD, dstD,
                            rankVar, dstVar, rankMean, dstMean, alpha, beta);
@@ -267,19 +384,22 @@ C_UnrankedMemRefType allocConstantNVGPUF16(int32_t idx) {
 }
 
 void nvteLayernormF32(int64_t rankA, void *dstA, float eps) {
-  mlir::hands_on_mlir::LayernormRunner<float> lnRunner;
+  using namespace mlir::hands_on_mlir::homnvgpu_kernel;
+  LayernormRunner<float> lnRunner;
   lnRunner.run(rankA, dstA, eps);
 }
 
 void nvteLayernormF16(int64_t rankA, void *dstA, float eps) {
-  mlir::hands_on_mlir::LayernormRunner<half> lnRunner;
+  using namespace mlir::hands_on_mlir::homnvgpu_kernel;
+  LayernormRunner<half> lnRunner;
   lnRunner.run(rankA, dstA, eps);
 }
 
 void nvteBertAttentionF32(int64_t rankA, void *dstA, int64_t rankSeqlen,
                           void *dstSeqlen, int64_t rankOut, void *dstOut,
                           float scale, int64_t headNum) {
-  mlir::hands_on_mlir::BertAttentionRunner<float> bertAttnRunner;
+  using namespace mlir::hands_on_mlir::homnvgpu_kernel;
+  BertAttentionRunner<float> bertAttnRunner;
   bertAttnRunner.run(rankA, dstA, rankSeqlen, dstSeqlen, rankOut, dstOut, scale,
                      headNum);
 }
@@ -287,7 +407,8 @@ void nvteBertAttentionF32(int64_t rankA, void *dstA, int64_t rankSeqlen,
 void nvteBertAttentionF16(int64_t rankA, void *dstA, int64_t rankSeqlen,
                           void *dstSeqlen, int64_t rankOut, void *dstOut,
                           float scale, int64_t headNum) {
-  mlir::hands_on_mlir::BertAttentionRunner<half> bertAttnRunner;
+  using namespace mlir::hands_on_mlir::homnvgpu_kernel;
+  BertAttentionRunner<half> bertAttnRunner;
   bertAttnRunner.run(rankA, dstA, rankSeqlen, dstSeqlen, rankOut, dstOut, scale,
                      headNum);
 }

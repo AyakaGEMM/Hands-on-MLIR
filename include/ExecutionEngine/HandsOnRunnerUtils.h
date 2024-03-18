@@ -4,6 +4,7 @@
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <iostream>
 #include <numeric>
 #ifdef _WIN32 // Copied from official mlir project
@@ -41,7 +42,7 @@ auto convertToDynamicMemRefType(int64_t rank, void *dst) {
   return dyType;
 }
 
-typedef void (*allocFnType)(void **, size_t);
+using allocFnType = std::function<void(void **, size_t)>;
 
 template <typename ElementType, int32_t rank, typename MemRefType = float>
 static UnrankedMemRefType<MemRefType>
@@ -52,6 +53,8 @@ allocHelper(const std::vector<int64_t> &sizes, allocFnType customAllocer) {
       malloc(sizeof(StridedMemRefType<ElementType, rank>));
   auto des = static_cast<StridedMemRefType<ElementType, rank> *>(
       returnMemRef.descriptor);
+
+  assert(rank == sizes.size());
 
   auto totalSize =
       std::accumulate(sizes.begin(), sizes.end(), 1, std::multiplies<>());

@@ -73,6 +73,8 @@ public:
     thrust::gather(map_iter, map_iter + total_size, value_thrust_ptr,
                    out_thrust_ptr);
 
+    checkCudaErrors(cudaStreamSynchronize(nullptr));
+
     return Status::kSuccess;
   }
 };

@@ -1,0 +1,14 @@
+#include "HOMNVGPU/HOMNVGPUOps.td"
+
+Rewrite profileMatmul(op0 : Op);
+
+Pattern {
+  let kernel = attr<"0 : i32">;
+  let act = attr<"0 : i32">;
+  let matmul = op<homnvgpu.matmul>(input0
+                                   : Value, input1
+                                   : Value, input2
+                                   : Value){kernel_name = kernel, act = act};
+
+  rewrite matmul with { profileMatmul(matmul); };
+}

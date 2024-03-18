@@ -2,13 +2,16 @@
 
 #include "cutlass/cutlass.h"
 #include "cutlass/half.h"
+#include "cutlass/layout/matrix.h"
+#include "cutlass/library/types.h"
 #include "half.h"
 #include "transformer_engine/transformer_engine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
-#include <cublas.h>
+#include <cublas_v2.h>
+#include <cuda_runtime_api.h>
 #include <memory>
 #include <thrust/device_ptr.h>
 #include <thrust/fill.h>
@@ -89,6 +92,9 @@ static const char *_cuBlasGetErrorEnum(cublasStatus_t error) {
       printf("%s %d CuBlas: %s\n", __FILE__, __LINE__,                         \
              _cuBlasGetErrorEnum(e));                                          \
   }
+namespace mlir {
+namespace hands_on_mlir {
+namespace homnvgpu_kernel {
 
 template <typename T> struct NVTETypeMap;
 
@@ -210,7 +216,8 @@ static std::shared_ptr<T> getDummyPointer(size_t size) {
     T *allocPtr;
     allocedSize = size;
     checkCudaErrors(cudaMalloc(&allocPtr, sizeof(T) * allocedSize));
-    ptr.reset(allocPtr, cudaFree);
+    auto deleter = [](T *data) { cudaFree(data); };
+    ptr.reset(allocPtr, deleter);
   }
 
   return ptr;
@@ -229,3 +236,138 @@ static auto getMulitProcessorCount() {
 
   return mpCount;
 }
+
+using LayoutTypeID = cutlass::library::LayoutTypeID;
+using NumericTypeID = cutlass::library::NumericTypeID;
+
+template <typename T> struct LayoutMap;
+
+template <> struct LayoutMap<cutlass::layout::ColumnMajor> {
+  static LayoutTypeID const kId = LayoutTypeID::kColumnMajor;
+};
+
+template <> struct LayoutMap<cutlass::layout::RowMajor> {
+  static LayoutTypeID const kId = LayoutTypeID::kRowMajor;
+};
+
+template <> struct LayoutMap<cutlass::layout::ColumnMajorInterleaved<2>> {
+  static LayoutTypeID const kId = LayoutTypeID::kColumnMajorInterleavedK2;
+};
+
+template <> struct LayoutMap<cutlass::layout::RowMajorInterleaved<2>> {
+  static LayoutTypeID const kId = LayoutTypeID::kRowMajorInterleavedK2;
+};
+
+template <> struct LayoutMap<cutlass::layout::ColumnMajorInterleaved<4>> {
+  static LayoutTypeID const kId = LayoutTypeID::kColumnMajorInterleavedK4;
+};
+
+template <> struct LayoutMap<cutlass::layout::RowMajorInterleaved<4>> {
+  static LayoutTypeID const kId = LayoutTypeID::kRowMajorInterleavedK4;
+};
+
+template <> struct LayoutMap<cutlass::layout::ColumnMajorInterleaved<16>> {
+  static LayoutTypeID const kId = LayoutTypeID::kColumnMajorInterleavedK16;
+};
+
+template <> struct LayoutMap<cutlass::layout::RowMajorInterleaved<16>> {
+  static LayoutTypeID const kId = LayoutTypeID::kRowMajorInterleavedK16;
+};
+
+template <> struct LayoutMap<cutlass::layout::ColumnMajorInterleaved<32>> {
+  static LayoutTypeID const kId = LayoutTypeID::kColumnMajorInterleavedK32;
+};
+
+template <> struct LayoutMap<cutlass::layout::RowMajorInterleaved<32>> {
+  static LayoutTypeID const kId = LayoutTypeID::kRowMajorInterleavedK32;
+};
+
+template <> struct LayoutMap<cutlass::layout::ColumnMajorInterleaved<64>> {
+  static LayoutTypeID const kId = LayoutTypeID::kColumnMajorInterleavedK64;
+};
+
+template <> struct LayoutMap<cutlass::layout::RowMajorInterleaved<64>> {
+  static LayoutTypeID const kId = LayoutTypeID::kRowMajorInterleavedK64;
+};
+
+template <typename T> struct NumericTypeMap;
+
+template <> struct NumericTypeMap<void> {
+  static NumericTypeID const kId = NumericTypeID::kVoid;
+};
+
+template <> struct NumericTypeMap<cutlass::uint1b_t> {
+  static NumericTypeID const kId = NumericTypeID::kB1;
+};
+
+template <> struct NumericTypeMap<cutlass::int4b_t> {
+  static NumericTypeID const kId = NumericTypeID::kS4;
+};
+
+template <> struct NumericTypeMap<int8_t> {
+  static NumericTypeID const kId = NumericTypeID::kS8;
+};
+
+template <> struct NumericTypeMap<int16_t> {
+  static NumericTypeID const kId = NumericTypeID::kS16;
+};
+
+template <> struct NumericTypeMap<int32_t> {
+  static NumericTypeID const kId = NumericTypeID::kS32;
+};
+
+template <> struct NumericTypeMap<int64_t> {
+  static NumericTypeID const kId = NumericTypeID::kS64;
+};
+
+template <> struct NumericTypeMap<cutlass::uint4b_t> {
+  static NumericTypeID const kId = NumericTypeID::kU4;
+};
+
+template <> struct NumericTypeMap<uint8_t> {
+  static NumericTypeID const kId = NumericTypeID::kU8;
+};
+
+template <> struct NumericTypeMap<cutlass::float_e4m3_t> {
+  static NumericTypeID const kId = NumericTypeID::kFE4M3;
+};
+
+template <> struct NumericTypeMap<cutlass::float_e5m2_t> {
+  static NumericTypeID const kId = NumericTypeID::kFE5M2;
+};
+
+template <> struct NumericTypeMap<uint16_t> {
+  static NumericTypeID const kId = NumericTypeID::kU16;
+};
+
+template <> struct NumericTypeMap<uint32_t> {
+  static NumericTypeID const kId = NumericTypeID::kU32;
+};
+
+template <> struct NumericTypeMap<uint64_t> {
+  static NumericTypeID const kId = NumericTypeID::kU64;
+};
+
+template <> struct NumericTypeMap<cutlass::half_t> {
+  static NumericTypeID const kId = NumericTypeID::kF16;
+};
+
+template <> struct NumericTypeMap<float> {
+  static NumericTypeID const kId = NumericTypeID::kF32;
+};
+
+template <> struct NumericTypeMap<double> {
+  static NumericTypeID const kId = NumericTypeID::kF64;
+};
+
+template <> struct NumericTypeMap<cutlass::bfloat16_t> {
+  static NumericTypeID const kId = NumericTypeID::kBF16;
+};
+
+template <> struct NumericTypeMap<cutlass::tfloat32_t> {
+  static NumericTypeID const kId = NumericTypeID::kTF32;
+};
+
+} // namespace homnvgpu_kernel
+} // namespace hands_on_mlir
+} // namespace mlir

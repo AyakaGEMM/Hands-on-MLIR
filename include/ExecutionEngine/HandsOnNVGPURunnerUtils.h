@@ -2,7 +2,6 @@
 #define HANDS_ON_MLIR_NVGPU_RUNNER_UTILS_H
 
 #include "ExecutionEngine/HandsOnRunnerUtils.h"
-#include "NVGPUKernels/Utils.h"
 #include <cstdint>
 
 extern allocFnType nvgpuAllocer;
@@ -65,8 +64,7 @@ HANDS_ON_MLIR_RUNNERUTILS_EXPORT void
 cutlassGemmF16(int64_t rankA, void *dstA, bool transa, int64_t rankB,
                void *dstB, bool transb, int64_t rankC, void *dstC,
                int64_t rankD, void *dstD, int64_t activation, float alpha,
-               float beta);
-
+               float beta, int32_t gemmNum, int32_t splitKFactor);
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT void
 cutlassGemmWithVarMeanF16(int64_t rankA, void *dstA, int64_t rankB, void *dstB,
                           int64_t rankC, void *dstC, int64_t rankD, void *dstD,
@@ -92,7 +90,7 @@ HANDS_ON_MLIR_RUNNERUTILS_EXPORT
 void nvteGemmF16(int64_t rankA, void *dstA, bool transa, int64_t rankB,
                  void *dstB, bool transb, int64_t rankC, void *dstC,
                  int64_t rankD, void *dstD, int64_t activation, float alpha,
-                 float beta);
+                 float beta, int32_t, int32_t);
 
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT void
 nvteLayernormF32(int64_t rankA, void *dstA, float eps = 1e-6);
