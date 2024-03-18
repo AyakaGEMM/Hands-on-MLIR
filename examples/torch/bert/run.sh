@@ -2,13 +2,9 @@
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64:/usr/lib/wsl/lib:/home/shared_folder/cudnn-linux-x86_64-9.0.0.312_cuda12-archive/lib
 
-<<<<<<< HEAD
 ../../../build/bin/hands-on-opt --tosa-to-hom-pipeline --hom-fusion --hom-fp32-to-fp16 --hom-to-homnvgpu --homnvgpu-fusion bert.mlir > pre_tune.mlir
 
 ../../../build/bin/hands-on-opt --homnvgpu-legalize-gemm --tosa-layerwise-constant-fold --hom-serialize-weight --homnvgpu-to-func --hom-func-to-llvm-pipeline  pre_tune.mlir | \
-=======
-../../../build/bin/hands-on-opt --tosa-to-hom-pipeline --hom-fusion --hom-fp32-to-fp16 --hom-to-homnvgpu --homnvgpu-fusion --homnvgpu-legalize-gemm --tosa-layerwise-constant-fold --hom-serialize-weight --homnvgpu-to-func --hom-func-to-llvm-pipeline  bert.mlir | \
->>>>>>> 60d05e5... Add legalize gemm pass, Add hom to func pipeline
 ../../../thirdparty/llvm-project/build/bin/mlir-translate --mlir-to-llvmir |\
 ../../../thirdparty/llvm-project/build/bin/llc > bert_nvgpu.s
 
