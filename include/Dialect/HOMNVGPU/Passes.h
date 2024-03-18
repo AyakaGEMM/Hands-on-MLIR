@@ -13,6 +13,7 @@ namespace hands_on_mlir {
 namespace homnvgpu {
 
 #define GEN_PASS_DECL_HOMNVGPUFUSIONPASS
+#define GEN_PASS_DECL_HOMNVGPULEGALIZEGEMMPASS
 #define GEN_PASS_REGISTRATION
 #include "HOMNVGPU/Passes.h.inc"
 

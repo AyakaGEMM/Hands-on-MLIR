@@ -9,6 +9,7 @@ add_mlir_library(
   MLIRHOMNVGPUOpsIncGen
   HOMNVGPUTransformsPassIncGen
   HOMNVGPUFusionPDLLPatternsIncGen
+  HOMNVGPULegalizeGemmPDLLPatternsIncGen
   LINK_LIBS
   PUBLIC
   MLIRIR

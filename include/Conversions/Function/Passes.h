@@ -1,8 +1,11 @@
 #ifndef HOM_CONVERSIONS_FUNC_TRANSFORMS_PASSES_H
 #define HOM_CONVERSIONS_FUNC_TRANSFORMS_PASSES_H
 
+#include "mlir/Conversion/Passes.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Pass/Pass.h"
+#include "mlir/Pass/PassManager.h"
+#include "mlir/Pass/PassRegistry.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
 
@@ -48,6 +51,18 @@ struct ConvertHOMDummyTensorOp
   }
 };
 } // namespace
+
+inline void registerHOMFuncToLLVMPipelines() {
+  PassPipelineRegistration<>(
+      "hom-func-to-llvm-pipeline", "Convert HOM func call to llvm ir",
+      [](OpPassManager &pm) {
+        pm.addPass(createExtractInitFuncPass());
+        pm.addPass(createConvertFuncToLLVMPass());
+        pm.addPass(createFinalizeMemRefToLLVMConversionPass());
+        pm.addPass(createArithToLLVMConversionPass());
+        pm.addPass(createUnifyLLVMFuncInterfacePass());
+      });
+}
 
 } // namespace hands_on_mlir
 } // namespace mlir

@@ -1,0 +1,25 @@
+#include "HOMNVGPU/HOMNVGPUOps.td"
+#include "mlir/Dialect/Tosa/IR/TosaOps.td"
+
+Rewrite generateTranspose(op0 : Op);
+Constraint isF16(op
+                 : Op)[{
+  if (auto tp = dyn_cast<TensorType>(op->getResult(0).getType())) {
+    return success(tp.getElementType().isF16());
+  }
+  return failure();
+}];
+
+Pattern {
+  let transa = attr<"0 : i1">;
+  let transb = attr<"0 : i1">;
+  let kernel = attr<"0 : i32">;
+  let matmul = op<homnvgpu.matmul>(input0
+                                   : Value, input1
+                                   : Value, input2
+                                   : Value){transa = transa, transb = transb,
+                                            kernel_name = kernel};
+  isF16(matmul);
+
+  rewrite matmul with { generateTranspose(matmul); };
+}
