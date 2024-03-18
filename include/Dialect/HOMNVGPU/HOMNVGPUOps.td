@@ -38,7 +38,9 @@ def HOMNVGPU_MatmulOp : HOMNVGPU_Op<"matmul", []> {
                    : $operand2, F32Attr
                    : $alpha, F32Attr
                    : $beta, I32Attr
-                   : $act, DefaultValuedAttr<BoolAttr, "false"> : $transa, DefaultValuedAttr<BoolAttr, "false"> : $transb);
+                   : $act, DefaultValuedAttr<BoolAttr, "false"> : $transa, DefaultValuedAttr<BoolAttr, "false"> : $transb, DefaultValuedAttr<I32Attr, "0">
+                   : $kernel_name, DefaultValuedAttr<I32Attr, "1">
+                   : $split_k_factor); // Only support serial splitK now.
 
   let results = (outs HOM_RankedTensor : $output);
 }

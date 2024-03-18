@@ -8,3 +8,5 @@ add_public_tablegen_target(HOMNVGPUTransformsPassIncGen)
 
 add_mlir_pdll_library(HOMNVGPUFusionPDLLPatternsIncGen HOMNVGPUFusion.pdll
                       HOMNVGPUFusion.pdll.h.inc)
+add_mlir_pdll_library(HOMNVGPULegalizeGemmPDLLPatternsIncGen
+                      HOMNVGPULegalizeGemm.pdll HOMNVGPULegalizeGemm.pdll.h.inc)

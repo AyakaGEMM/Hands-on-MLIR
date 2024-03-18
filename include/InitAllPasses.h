@@ -11,6 +11,7 @@ namespace hands_on_mlir {
 inline void registerAllPasses() {
   registerExtractInitFuncPass();
   registerHOMFP32ToFP16Pass();
+  registerHOMFuncToLLVMPipelines();
   registerHOMNVGPUToFuncPass();
   registerHOMToFuncPass();
   registerHOMToHOMNVGPUPass();
@@ -22,6 +23,7 @@ inline void registerAllPasses() {
   hom::registerTosaConstantFoldingPass();
   hom::registerTosaToHOMPipelines();
   homnvgpu::registerHOMNVGPUFusionPass();
+  homnvgpu::registerHOMNVGPULegalizeGemmPass();
 }
 } // namespace hands_on_mlir
 } // namespace mlir
