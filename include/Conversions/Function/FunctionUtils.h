@@ -27,6 +27,7 @@ constexpr llvm::StringRef kAllocDummyTensorF32 = "allocDummyTensorF32";
 constexpr llvm::StringRef kAlloc3DMemRefF32 = "alloc3DMemRefF32";
 constexpr llvm::StringRef kAlloc1DMemRefNVGPUI32 = "alloc1DMemRefNVGPUI32";
 constexpr llvm::StringRef kAlloc3DMemRefNVGPUF32 = "alloc3DMemRefNVGPUF32";
+constexpr llvm::StringRef kAlloc1DMemRefNVGPUF16 = "alloc3DMemRefNVGPUF16";
 constexpr llvm::StringRef kAlloc3DMemRefNVGPUF16 = "alloc3DMemRefNVGPUF16";
 constexpr llvm::StringRef kAllocByMemRefF32 = "allocByMemRefF32";
 constexpr llvm::StringRef kAllocConstantF32 = "allocConstantF32";
@@ -46,7 +47,10 @@ constexpr llvm::StringRef kInit = "_initFn";
 constexpr llvm::StringRef kMatmulAddF32 = "matmulAddF32";
 constexpr llvm::StringRef kMatmulNVGPUF32 = "cutlassMatmulF32";
 constexpr llvm::StringRef kGemmNVGPUF32 = "cutlassGemmF32";
+constexpr llvm::StringRef kGemmWithVarMeanNVGPUF16 =
+    "cutlassGemmWithVarMeanF16";
 constexpr llvm::StringRef kGemmNVGPUF16 = "nvteGemmF16";
+constexpr llvm::StringRef kCutlassGemmNVGPUF16 = "cutlassGemmF16";
 constexpr llvm::StringRef kLayernormNVGPUF32 = "nvteLayernormF32";
 constexpr llvm::StringRef kLayernormNVGPUF16 = "nvteLayernormF16";
 constexpr llvm::StringRef kBertAttentionNVGPUF32 = "nvteBertAttentionF32";
@@ -84,10 +88,14 @@ func::FuncOp lookupOrCreateAddNVGPUF32Fn(ModuleOp moduleOp);
 
 // FP16
 func::FuncOp lookupOrCreateAllocConstantNVGPUF16Fn(ModuleOp moduleOp);
+func::FuncOp lookupOrCreateAlloc1DMemRefNVGPUF16Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateAlloc3DMemRefNVGPUF16Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateLayernormNVGPUF16Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateBertAttentionNVGPUF16Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateGemmNVGPUF16Fn(ModuleOp moduleOp);
+func::FuncOp lookupOrCreateCutlassGemmNVGPUF16Fn(ModuleOp moduleOp);
+func::FuncOp lookupOrCreateLayernormGemmNVGPUF16Fn(ModuleOp moduleOp);
+func::FuncOp lookupOrCreateGemmWithVarMeanNVGPUF16Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateDeallocF16Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateDeallocNVGPUF16Fn(ModuleOp moduleOp);
 func::FuncOp lookupOrCreateGatherNVGPUF16Fn(ModuleOp moduleOp);

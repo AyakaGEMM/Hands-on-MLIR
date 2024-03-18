@@ -15,6 +15,7 @@
 
 namespace mlir {
 namespace hands_on_mlir {
+namespace homnvgpu_kernel {
 
 template <typename ElementType>
 class BertAttentionRunner : public OperationRunner {
@@ -119,11 +120,15 @@ public:
         construct_tensors(rankA, dstA, rankSeqlen, dstSeqlen, rankOut, dstOut,
                           scale, headNum, aux_output_tensors);
 
+    checkCudaErrors(cudaStreamSynchronize(nullptr));
+
     nvte_fused_attn_fwd_qkvpacked(
         qkv.data(), bias.data(), s.data(), output.data(), &aux_output_tensors,
         cu_seqlen.data(), rng_state.data(), seq_len, false, scale, 0,
         NVTE_BS3HD, NVTE_Bias_Type::NVTE_NO_BIAS,
         NVTE_Mask_Type::NVTE_PADDING_MASK, workspace.data(), nullptr);
+
+    checkCudaErrors(cudaStreamSynchronize(nullptr));
 
     nvte_tensor_pack_destroy(&aux_output_tensors);
 
@@ -136,5 +141,7 @@ public:
     return Status::kSuccess;
   }
 };
+
+} // namespace homnvgpu_kernel
 } // namespace hands_on_mlir
 } // namespace mlir

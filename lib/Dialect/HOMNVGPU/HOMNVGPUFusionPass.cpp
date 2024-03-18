@@ -71,7 +71,7 @@ static void generateGemmLnGemmImpl(PatternRewriter &rewriter, Operation *gemm0_,
       gemm0->getLoc(), gemm0.getOperand0(), gemm0.getOperand1(),
       gemm0.getOperand2(), gemm0.getAlpha(), gemm0.getBeta(), gemm0.getAct(),
       ln.getEps());
-  auto LnGemm = rewriter.create<homnvgpu::LayernormMatmul>(
+  auto LnGemm = rewriter.create<homnvgpu::LayernormMatmulOp>(
       gemm1->getLoc(), gemm1.getResult().getType(), gemmWithVarMean.getOutput(),
       gemm1.getOperand1(), gemm1.getOperand2(), gemmWithVarMean.getVar(),
       gemmWithVarMean.getMean(), gemm1.getAlpha(), gemm1.getBeta(),

@@ -38,7 +38,9 @@ def HOMNVGPU_MatmulOp : HOMNVGPU_Op<"matmul", []> {
                    : $operand2, F32Attr
                    : $alpha, F32Attr
                    : $beta, I32Attr
-                   : $act, DefaultValuedAttr<BoolAttr, "false"> : $transa, DefaultValuedAttr<BoolAttr, "false"> : $transb, DefaultValuedAttr<I32Attr, "0">
+                   : $act, DefaultValuedAttr<BoolAttr, "false">
+                   : $transa, DefaultValuedAttr<BoolAttr, "false">
+                   : $transb, DefaultValuedAttr<I32Attr, "0">
                    : $kernel_name, DefaultValuedAttr<I32Attr, "1">
                    : $split_k_factor); // Only support serial splitK now.
 
@@ -55,7 +57,9 @@ def HOMNVGPU_MatmulWithVarMeanOp
                    : $alpha, F32Attr
                    : $beta, I32Attr
                    : $act, F32Attr
-                   : $eps);
+                   : $eps, DefaultValuedAttr<BoolAttr, "false">
+                   : $transa, DefaultValuedAttr<BoolAttr, "false">
+                   : $transb);
 
   let results = (outs HOM_RankedTensor
                  : $output, HOM_RankedTensor
@@ -63,7 +67,7 @@ def HOMNVGPU_MatmulWithVarMeanOp
                  : $mean);
 }
 
-def HOMNVGPU_LayernormMatmul : HOMNVGPU_Op<"ln_matmul", []> {
+def HOMNVGPU_LayernormMatmulOp : HOMNVGPU_Op<"ln_matmul", []> {
   let arguments = (ins HOM_RankedTensor
                    : $operand0, HOM_RankedTensor
                    : $operand1, HOM_Tensor
@@ -72,7 +76,9 @@ def HOMNVGPU_LayernormMatmul : HOMNVGPU_Op<"ln_matmul", []> {
                    : $mean, F32Attr
                    : $alpha, F32Attr
                    : $beta, I32Attr
-                   : $act);
+                   : $act, DefaultValuedAttr<BoolAttr, "false">
+                   : $transa, DefaultValuedAttr<BoolAttr, "false">
+                   : $transb);
 
   let results = (outs HOM_RankedTensor : $output);
 }
