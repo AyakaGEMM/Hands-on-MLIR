@@ -11,7 +11,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <numeric>
 #include <vector>
 
 namespace mlir {

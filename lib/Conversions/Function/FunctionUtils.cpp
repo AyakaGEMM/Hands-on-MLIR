@@ -100,6 +100,7 @@ func::FuncOp lookupOrCreateGemmNVGPUF16Fn(ModuleOp moduleOp) {
                            IntegerType::get(ctx, 32)},
                           {});
 }
+
 func::FuncOp lookupOrCreateCutlassGemmNVGPUF16Fn(ModuleOp moduleOp) {
   auto ctx = moduleOp->getContext();
   return lookupOrCreateFn(moduleOp, kCutlassGemmNVGPUF16,

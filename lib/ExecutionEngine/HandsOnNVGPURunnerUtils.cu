@@ -82,6 +82,7 @@ void cutlassGemmF32(int64_t rankA, void *dstA, bool transa, int64_t rankB,
                     int64_t rankD, void *dstD, int64_t activation, float alpha,
                     float beta) {
   using namespace mlir::hands_on_mlir::homnvgpu_kernel;
+
   // Ideally, we should use manifest with generated template here.
   using RowMajor = cutlass::layout::RowMajor;
   using CutlassGemm =
@@ -94,9 +95,8 @@ void cutlassGemmF32(int64_t rankA, void *dstA, bool transa, int64_t rankB,
 
   // GemmOperationRunner<CutlassGemm> gemm;
 
-  // auto status =
-  //     gemm.run(rankA, dstA, rankB, dstB, rankC, dstC, rankD, dstD, alpha,
-  //     beta);
+  // auto status = gemm.run(rankA, dstA, rankB, dstB, rankC, dstC, rankD, dstD,
+  //                        alpha, beta, 1);
 
   // assert(status == cutlass::Status::kSuccess);
 }

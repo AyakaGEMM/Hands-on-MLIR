@@ -162,7 +162,6 @@ struct ConvertHOMNVGPUMatmulOp
                                                         rewriter.getI1Type());
     auto transB = rewriter.create<arith::ConstantIntOp>(loc, op.getTransb(),
                                                         rewriter.getI1Type());
-
     auto kernelIdxConst = rewriter.create<arith::ConstantIntOp>(
         loc, kernelIdx, rewriter.getIntegerType(32));
 
