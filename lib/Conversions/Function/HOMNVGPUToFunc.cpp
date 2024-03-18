@@ -45,6 +45,39 @@ namespace hands_on_mlir {
 
 namespace {
 
+// A matmul-like op should has alpha beta attr.
+template <typename MatmulLikeOperation>
+inline bool canMatmulReuseC(MatmulLikeOperation op, int posC = 2) {
+  Value c = op.getOperand(posC);
+  auto cDefiningOp = c.getDefiningOp();
+  if (cDefiningOp && dyn_cast<hom::DummyTensorOp>(cDefiningOp)) {
+    return false;
+  }
+  if (op.getBeta().convertToFloat() == 0) {
+    return true;
+  }
+  bool hasOtherUser = false;
+  bool atThisOp = true;
+
+  op->getBlock()->walk([&op, &atThisOp, &hasOtherUser, &c](Operation *visit) {
+    if (atThisOp) {
+      return;
+    }
+    if (visit == op) {
+      atThisOp = false;
+      return;
+    }
+
+    for (const auto &operand : visit->getOperands()) {
+      if (operand == c) {
+        hasOtherUser = true;
+      }
+    }
+  });
+
+  return !hasOtherUser;
+}
+
 struct HOMNVGPUToFuncPass : impl::HOMNVGPUToFuncPassBase<HOMNVGPUToFuncPass> {
   void runOnOperation() final;
 
@@ -68,37 +101,7 @@ struct ConvertHOMNVGPUMatmulOp
     Value c = op.getOperand(2), d;
     auto cDefiningOp = c.getDefiningOp();
 
-    auto canReuseC = [&]() {
-      if (cDefiningOp && dyn_cast<hom::DummyTensorOp>(cDefiningOp)) {
-        return false;
-      }
-      if (op.getBeta().convertToFloat() == 0) {
-        return true;
-      }
-      bool hasOtherUser = false;
-      bool atThisOp = true;
-
-      op->getBlock()->walk(
-          [&op, &atThisOp, &hasOtherUser, &c](Operation *visit) {
-            if (atThisOp) {
-              return;
-            }
-            if (visit == op) {
-              atThisOp = false;
-              return;
-            }
-
-            for (const auto &operand : visit->getOperands()) {
-              if (operand == c) {
-                hasOtherUser = true;
-              }
-            }
-          });
-
-      return !hasOtherUser;
-    };
-
-    if (canReuseC()) {
+    if (canMatmulReuseC(op)) {
       d = c;
     } else {
       func::FuncOp allocFn;
@@ -133,11 +136,16 @@ struct ConvertHOMNVGPUMatmulOp
     }
 
     func::FuncOp funcOp;
+    auto kernelIdx = op.getKernelName();
 
     if (returnType.getElementType().isF32()) {
       funcOp = lookupOrCreateGemmNVGPUF32Fn(moduleOp);
     } else if (returnType.getElementType().isF16()) {
-      funcOp = lookupOrCreateGemmNVGPUF16Fn(moduleOp);
+      if (kernelIdx > 0) {
+        llvm_unreachable("Not implemented.");
+      } else {
+        funcOp = lookupOrCreateGemmNVGPUF16Fn(moduleOp);
+      }
     } else {
       llvm_unreachable("Not good.");
     }
@@ -153,6 +161,11 @@ struct ConvertHOMNVGPUMatmulOp
                                                         rewriter.getI1Type());
     auto transB = rewriter.create<arith::ConstantIntOp>(loc, op.getTransb(),
                                                         rewriter.getI1Type());
+    auto kernelIdxConst = rewriter.create<arith::ConstantIntOp>(
+        loc, kernelIdx, rewriter.getIntegerType(32));
+
+    auto splitKFactorIdxConst = rewriter.create<arith::ConstantIntOp>(
+        loc, op.getSplitKFactor(), rewriter.getIntegerType(32));
 
     SmallVector<Value> operands = {op.getOperand(0),
                                    transA.getResult(),
@@ -162,7 +175,9 @@ struct ConvertHOMNVGPUMatmulOp
                                    d,
                                    act.getResult(),
                                    alpha.getResult(),
-                                   beta.getResult()};
+                                   beta.getResult(),
+                                   kernelIdxConst.getResult(),
+                                   splitKFactorIdxConst.getResult()};
     rewriter.create<func::CallOp>(op.getLoc(), funcOp, operands);
 
     while (!op->getUses().empty()) {
