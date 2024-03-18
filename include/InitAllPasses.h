@@ -11,12 +11,12 @@ namespace hands_on_mlir {
 inline void registerAllPasses() {
   registerExtractInitFuncPass();
   registerHOMFP32ToFP16Pass();
+  registerHOMFuncToLLVMPipelines();
   registerHOMNVGPUToFuncPass();
   registerHOMToFuncPass();
   registerHOMToHOMNVGPUPass();
   registerMatMulCPUOptimizePass();
   registerUnifyLLVMFuncInterfacePass();
-  registerHOMFuncToLLVMPipelines();
   hom::registerHOMFusionPass();
   hom::registerHOMSerializeWeightPass();
   hom::registerTosaToHOMPass();
