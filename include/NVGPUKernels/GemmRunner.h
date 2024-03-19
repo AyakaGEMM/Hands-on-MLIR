@@ -350,7 +350,7 @@ template <typename ElementType> class GemmNVTERunner : public OperationRunner {
 
     assert(alpha == 1);
 
-    std::vector<size_t> a_shape = {M * BatchSize, K};
+    std::vector<size_t> a_shape = {BatchSize * M, K};
     std::vector<size_t> b_shape = {N, K};
     std::vector<size_t> c_shape = {M, N};
 
@@ -369,8 +369,9 @@ template <typename ElementType> class GemmNVTERunner : public OperationRunner {
     // Magic number here. Transformer engine uses 4MB for all architecture
     // except for Hopper.
     auto workspace_buffer = getDummyPointer(4 * 1024 * 1024);
-    auto pre_gelu_buffer =
-        activation == 1 ? getDummyPointer<ElementType>(M * N) : nullptr;
+    auto pre_gelu_buffer = activation == 1
+                               ? getDummyPointer<ElementType>(BatchSize * M * N)
+                               : nullptr;
 
     TensorWrapper workspace(workspace_buffer.get(), {4 * 1024 * 1024},
                             NVTEWrapperDTypeMap<char>::kType);
