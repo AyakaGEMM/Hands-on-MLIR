@@ -33,8 +33,11 @@ Pattern {
       : Value){act = act, alpha = A : Attr, beta = B : Attr};
   let root = op<hom.gelu>(matmul);
 
-  replace root with op<homnvgpu.matmul>(input0, input1, input2){
-      act = attr<"1 : i32">, alpha = A, beta = B};
+  rewrite root with {
+    replace root with op<homnvgpu.matmul>(input0, input1, input2){
+        act = attr<"1 : i32">, alpha = A, beta = B};
+    erase matmul;
+  };
 }
 
 Pattern {
