@@ -36,8 +36,6 @@ public:
     auto In = convertToDynamicMemRefType<InputElementType>(rankIn, desIn);
     auto Out = convertToDynamicMemRefType<int32_t>(rankOut, desOut);
 
-    checkCudaErrors(cudaStreamSynchronize(nullptr));
-
     auto inTotlaSize = std::accumulate(In.sizes, In.sizes + rankIn, 1,
                                        std::multiplies<int64_t>());
 
@@ -55,13 +53,9 @@ public:
       *outPtr = thrust::reduce(inPtr, inPtr + In.strides[0]);
     }
 
-    checkCudaErrors(cudaStreamSynchronize(nullptr));
-
     auto outPtr = thrust::device_pointer_cast(Out.data);
 
     thrust::inclusive_scan(outPtr + 1, outPtr + In.sizes[0] + 1, outPtr + 1);
-
-    checkCudaErrors(cudaStreamSynchronize(nullptr));
 
     return Status::kSuccess;
   }

@@ -85,6 +85,8 @@ static void profileMatmulImpl(PatternRewriter &rewriter, Operation *gemm_) {
     std::cerr << i << " ";
   }
 
+  std::cerr << std::endl;
+
   auto M = A[0] * A[1], N = B[2], K = A[2];
   auto alpha = gemm.getAlpha().convertToFloat();
   auto beta = gemm.getBeta().convertToFloat();

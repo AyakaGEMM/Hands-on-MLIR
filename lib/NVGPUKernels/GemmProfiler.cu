@@ -16,18 +16,16 @@ namespace homnvgpu_kernel {
 GemmProfiler::GemmProfiler(int64_t M, int64_t N, int64_t K, float alpha,
                            float beta)
     : M_(M), N_(N), K_(K), alpha_(alpha), beta_(beta), timingCache() {
-  a.rank = b.rank = tb.rank = c.rank = d.rank = 3;
+  a.rank = b.rank = tb.rank = c.rank = 3;
   a.descriptor = malloc(sizeof(StridedMemRefType<half, 3>));
   b.descriptor = malloc(sizeof(StridedMemRefType<half, 3>));
   tb.descriptor = malloc(sizeof(StridedMemRefType<half, 3>));
   c.descriptor = malloc(sizeof(StridedMemRefType<half, 3>));
-  d.descriptor = malloc(sizeof(StridedMemRefType<half, 3>));
 
   auto desA = static_cast<StridedMemRefType<half, 3> *>(a.descriptor);
   auto desB = static_cast<StridedMemRefType<half, 3> *>(b.descriptor);
   auto desTB = static_cast<StridedMemRefType<half, 3> *>(tb.descriptor);
   auto desC = static_cast<StridedMemRefType<half, 3> *>(c.descriptor);
-  auto desD = static_cast<StridedMemRefType<half, 3> *>(d.descriptor);
 
   auto clearSize = [](StridedMemRefType<half, 3> &A) {
     A.sizes[0] = A.sizes[1] = A.sizes[2] = 0;
@@ -38,13 +36,11 @@ GemmProfiler::GemmProfiler(int64_t M, int64_t N, int64_t K, float alpha,
   clearSize(*desB);
   clearSize(*desTB);
   clearSize(*desC);
-  clearSize(*desD);
 
   updateShape(a, 1, M, K);
   updateShape(b, 1, K, N);
   updateShape(tb, 1, N, K);
   updateShape(c, 1, M, N);
-  updateShape(d, 1, M, N);
 
   updateSplitKFactor(K);
 }
@@ -61,7 +57,6 @@ GemmProfiler::~GemmProfiler() {
   freeMemref(b);
   freeMemref(tb);
   freeMemref(c);
-  freeMemref(d);
 }
 
 void GemmProfiler::updateSplitKFactor(int32_t K) {
@@ -157,8 +152,8 @@ std::tuple<int64_t, int32_t> GemmProfiler::profile() {
     GemmNVTERunner<half> runner;
     auto status = runner.run(this->a.rank, this->a.descriptor, false,
                              this->tb.rank, this->tb.descriptor, true,
-                             this->c.rank, this->c.descriptor, this->d.rank,
-                             this->d.descriptor, 0, this->alpha_, this->beta_);
+                             this->c.rank, this->c.descriptor, this->c.rank,
+                             this->c.descriptor, 0, this->alpha_, this->beta_);
 
     assert(status == cutlass::Status::kSuccess);
   };
@@ -201,9 +196,9 @@ std::tuple<int64_t, int32_t> GemmProfiler::profile() {
     for (auto k : splitKFactor) {
       auto runFn = [&kernel, this, k]() {
         auto error = kernel->run(
-            this->a.rank, this->a.descriptor, this->tb.rank,
-            this->tb.descriptor, this->c.rank, this->c.descriptor, this->d.rank,
-            this->d.descriptor, this->alpha_, this->beta_, k);
+            this->a.rank, this->a.descriptor, this->b.rank, this->b.descriptor,
+            this->c.rank, this->c.descriptor, this->c.rank, this->c.descriptor,
+            this->alpha_, this->beta_, k);
         assert(error == Status::kSuccess);
       };
 
@@ -234,7 +229,6 @@ std::tuple<int64_t, int32_t> GemmProfiler::profile(int64_t M, int64_t N,
   updateShape(b, 1, K, N);
   updateShape(tb, 1, N, K);
   updateShape(c, 1, M, N);
-  updateShape(d, 1, M, N);
 
   updateSplitKFactor(K);
 

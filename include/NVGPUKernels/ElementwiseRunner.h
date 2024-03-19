@@ -146,12 +146,8 @@ public:
         getRealVal<typename ElementwiseOp::ElementType>(BPtr, A.rank, A.strides,
                                                         B.sizes, B.strides));
 
-    checkCudaErrors(cudaStreamSynchronize(nullptr));
-
     thrust::transform(APtr, APtr + inTotlaSize, BwithBroadCast, OutPtr,
                       ElementwiseOp());
-
-    checkCudaErrors(cudaStreamSynchronize(nullptr));
 
     return Status::kSuccess;
   }

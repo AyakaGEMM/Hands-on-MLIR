@@ -25,30 +25,27 @@ Pattern {
 }
 
 // Currently do not support transpose for cutlass
-// Pattern {
-//   let transa = attr<"0 : i1">;
-//   let transb = attr<"0 : i1">;
-//   let trans = attr<"1 : i1">;
-//   let kernel = attr<"0 : i32">;
-//   let transpose = op<tosa.transpose>(input1 : Value, perm : Value);
-//   let matmul = op<homnvgpu.matmul>(input0
-//                                    : Value, transpose, input2
-//                                    : Value){
-//     transa = transa,
-//     transb = transb ,  act = act : Attr,
-//     alpha = alpha : Attr,
-//     beta = beta : Attr
-//   };
-//   isF16(matmul);
-//
-//   rewrite matmul with {
-//
-//   replace matmul with op<homnvgpu.matmul>(input0, input1, input2){
-//       transa = transa, transb = trans
-//        , kernel_name = kernel,
-//       alpha = alpha,   beta = beta
-//        ,act = act
-//       };
-//   };
-//
-// }
+Pattern {
+  let transa = attr<"0 : i1">;
+  let transb = attr<"0 : i1">;
+  let trans = attr<"1 : i1">;
+  let kernel = attr<"0 : i32">;
+  let transpose = op<tosa.transpose>(input1 : Value, perm : Value);
+  let matmul = op<homnvgpu.matmul>(input0
+                                   : Value, transpose, input2
+                                   : Value){
+    transa = transa,
+    transb = transb,
+    act = act : Attr,
+    alpha = alpha : Attr,
+    beta = beta : Attr
+  };
+  isF16(matmul);
+
+  rewrite matmul with {
+
+    replace matmul with op<homnvgpu.matmul>(input0, input1, input2){
+        transa = transa, transb = trans, kernel_name = kernel,
+        alpha = alpha,   beta = beta,    act = act};
+  };
+}

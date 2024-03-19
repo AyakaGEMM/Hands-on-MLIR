@@ -18,7 +18,7 @@ namespace homnvgpu_kernel {
 
 class GemmProfiler {
 
-  C_UnrankedMemRefType a, b, c, d, tb;
+  C_UnrankedMemRefType a, b, c, tb;
 
   float alpha_, beta_;
 
