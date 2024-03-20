@@ -163,6 +163,7 @@ std::tuple<int64_t, int32_t> GemmProfiler::profile() {
 
   int64_t bestIdx = -1;
   float bestTime = profileHelper(runNvteFn, "nvte");
+  auto basePerf = bestTime;
   int32_t bestSplitKFactor = 1;
   auto align = 8;
 
@@ -218,8 +219,10 @@ std::tuple<int64_t, int32_t> GemmProfiler::profile() {
 
   // To-do: Use A dedicated logger to log this.
   std::cerr << "Profile for " << M_ << " " << N_ << " " << K_
-            << " done. Best kernel " << bestIdx << ", best split k factor"
-            << bestSplitKFactor << ", best time " << bestTime << std::endl;
+            << " done. Best kernel " << bestIdx << ", best split k factor "
+            << bestSplitKFactor << ", best time " << bestTime
+            << ", speedup compared to nvte " << basePerf / bestTime << ". "
+            << std::endl;
 
   timingCache[{M_, N_, K_}] = {bestIdx, bestSplitKFactor};
 

@@ -8,11 +8,10 @@ execute_process(
     --operations "*" # To-do: make it configurable
     --build-dir ${PROJECT_BINARY_DIR} --curr-build-dir
     ${CMAKE_CURRENT_BINARY_DIR} --generator-target library --architectures
-    "${CMAKE_CUDA_ARCHITECTURES}" --kernels
+    "${CMAKE_CUDA_ARCHITECTURES}"
     # To-do: make it configurable
-    "*cutlass_tensorop_f16_s16816gemm_f16_64x64_64x5_nn_align2*"
-    --ignore-kernels "${CUTLASS_LIBRARY_IGNORE_KERNELS}" --kernel-filter-file
-    "${KERNEL_FILTER_FILE}" --selected-kernel-list
+    --kernels "*_nn_*" --ignore-kernels "${CUTLASS_LIBRARY_IGNORE_KERNELS}"
+    --kernel-filter-file "${KERNEL_FILTER_FILE}" --selected-kernel-list
     "${CUTLASS_LIBRARY_GENERATED_KERNEL_LIST_FILE}" --cuda-version
     "${CMAKE_CUDA_COMPILER_VERSION}" --log-level DEBUG
     --disable-cutlass-package-imports
