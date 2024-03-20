@@ -75,6 +75,7 @@ static void profileMatmulImpl(PatternRewriter &rewriter, Operation *gemm_) {
   auto A = gemm.getOperand0().getType().getShape();
   auto B = gemm.getOperand1().getType().getShape();
 
+  // To-do: Use A dedicated logger to log this.
   for (auto i : A) {
     std::cerr << i << " ";
   }

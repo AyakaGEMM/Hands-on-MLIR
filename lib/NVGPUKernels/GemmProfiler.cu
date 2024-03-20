@@ -100,12 +100,14 @@ float GemmProfiler::profileHelper(std::function<void()> runFn,
     totalIter += 100;
 
     if (totalTime / totalIter / 1.2 > previousBestTime) {
+      // To-do: Use A dedicated logger to log this.
       // std::cerr << "Skipping kernel(name: " << kernelName
       //           << ") since it is too slow. " << std::endl;
       break;
     }
   }
 
+  // To-do: Use A dedicated logger to log this.
   // std::cerr << "Get kernel name: " << kernelName << " with time "
   //           << totalTime / totalIter << std::endl;
 
@@ -143,6 +145,7 @@ std::tuple<int64_t, int32_t> GemmProfiler::profile() {
 
   if (it != timingCache.end()) {
     auto [idx, splitKFactor] = it->second;
+    // To-do: Use A dedicated logger to log this.
     std::cerr << "Cache hit, Idx = " << idx
               << ", split k factor = " << splitKFactor << std::endl;
     return it->second;
@@ -213,6 +216,7 @@ std::tuple<int64_t, int32_t> GemmProfiler::profile() {
     }
   }
 
+  // To-do: Use A dedicated logger to log this.
   std::cerr << "Profile for " << M_ << " " << N_ << " " << K_
             << " done. Best kernel " << bestIdx << ", best split k factor"
             << bestSplitKFactor << ", best time " << bestTime << std::endl;

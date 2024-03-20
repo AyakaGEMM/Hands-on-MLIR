@@ -268,6 +268,7 @@ C_UnrankedMemRefType allocConstantNVGPUF16(int32_t idx) {
   getline(file, line);
   std::stringstream ss(line);
 
+  // To-do: Use A dedicated logger to log this.
   std::cerr << "Constant Idx: " << idx << std::endl;
   while (ss >> a) {
     v.push_back(a);
@@ -368,4 +369,9 @@ thrustGatherDEF(F16, half);
 
 thrustCuSeqLenDEF(I64, int64_t);
 thrustCuSeqLenDEF(I32, int32_t);
+
+printMemrefSizeDEF(F32, float);
+printMemrefSizeDEF(F16, half);
+printMemrefSizeDEF(I64, int64_t);
+printMemrefSizeDEF(I32, int32_t);
 }

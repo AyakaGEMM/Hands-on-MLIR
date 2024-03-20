@@ -53,6 +53,20 @@ extern allocFnType nvgpuAllocer;
     runner.run(rankInput, desInput, rankOut, desOut);                          \
   }
 
+#define printMemrefSizeDECL(suffix)                                            \
+  HANDS_ON_MLIR_RUNNERUTILS_EXPORT void printMemrefSize##suffix(int64_t,       \
+                                                                void *);
+
+#define printMemrefSizeDEF(suffix, type)                                       \
+  void printMemrefSize##suffix(int64_t rk, void *descriptor) {                 \
+    auto des = static_cast<DynamicMemRefType<type> *>(descriptor);             \
+    std::cerr << "Print inside: ";                                             \
+    for (int i = 0; i < rk; i++) {                                             \
+      std::cerr << des->sizes[i] << " ";                                       \
+    }                                                                          \
+    std::cerr << std::endl;                                                    \
+  }
+
 extern "C" {
 HANDS_ON_MLIR_RUNNERUTILS_EXPORT void
 cutlassGemmF32(int64_t rankA, void *dstA, bool transa, int64_t rankB,
@@ -142,6 +156,11 @@ thrustGatherDECL(F16);
 
 thrustCuSeqLenDECL(I32);
 thrustCuSeqLenDECL(I64);
+
+printMemrefSizeDECL(F32);
+printMemrefSizeDECL(F16);
+printMemrefSizeDECL(I64);
+printMemrefSizeDECL(I32);
 }
 
 #endif

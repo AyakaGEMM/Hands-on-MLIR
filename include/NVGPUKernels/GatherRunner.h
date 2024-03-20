@@ -56,18 +56,6 @@ public:
     assert(indices.rank + 1 == out.rank);
     assert(indices.rank == 2);
 
-    for (int i = 0; i < 2; i++)
-      std::cerr << indices.sizes[i] << " ";
-    std::cerr << std::endl;
-
-    for (int i = 0; i < 3; i++)
-      std::cerr << out.sizes[i] << " ";
-    std::cerr << std::endl;
-
-    for (int i = 0; i < 3; i++)
-      std::cerr << value.sizes[i] << " ";
-    std::cerr << std::endl;
-
     assert(out.sizes[out.rank - 1] == value.sizes[2]);
     for (auto i = 0; i < indices.rank; i++) {
       assert(indices.sizes[i] == out.sizes[i]);
