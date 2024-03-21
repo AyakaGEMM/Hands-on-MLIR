@@ -31,3 +31,11 @@ def HOMNVGPULegalizeGemmPass
     "::mlir::pdl_interp::PDLInterpDialect"
   ];
 }
+
+def HOMNVGPUAutotunePass : Pass<"homnvgpu-autotune", "mlir::func::FuncOp"> {
+  let summary = "HOM Fusion Pass for NVIDIA GPU";
+  let dependentDialects = [
+    "::mlir::tosa::TosaDialect", "::mlir::pdl::PDLDialect",
+    "::mlir::pdl_interp::PDLInterpDialect"
+  ];
+}

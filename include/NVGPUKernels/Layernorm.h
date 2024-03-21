@@ -678,14 +678,10 @@ public:
           muTensor, workspace, barrier, mpCount] =
         construct_tensors(rankA, dstA, eps);
 
-    checkCudaErrors(cudaStreamSynchronize(nullptr));
-
     nvte_layernorm1p_fwd(inputTensor.data(), gammaTensor.data(),
                          betaTensor.data(), eps, outputTensor.data(),
                          muTensor.data(), rsigmaTensor.data(), nullptr, mpCount,
                          workspace.data(), barrier.data());
-
-    checkCudaErrors(cudaStreamSynchronize(nullptr));
 
     auto error = cudaGetLastError();
 

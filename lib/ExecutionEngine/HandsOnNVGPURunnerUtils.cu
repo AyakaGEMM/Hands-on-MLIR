@@ -4,26 +4,23 @@
 #include "NVGPUKernels/CuSeqLen.h"
 #include "NVGPUKernels/ElementwiseRunner.h"
 #include "NVGPUKernels/GatherRunner.h"
+#include "NVGPUKernels/GemmManifest.h"
 #include "NVGPUKernels/GemmRunner.h"
 #include "NVGPUKernels/Layernorm.h"
 #include "NVGPUKernels/LayernormGemmRunner.h"
 #include "NVGPUKernels/Utils.h"
 #include "NVGPUKernels/gemm_with_epilogue_visitor.h"
-#include "cute/numeric/int.hpp"
+#include "cublas_v2.h"
 #include "cutlass/arch/arch.h"
 #include "cutlass/arch/mma.h"
-#include "cutlass/cutlass.h"
 #include "cutlass/gemm/device/default_gemm_configuration.h"
+#include "cutlass/gemm/device/gemm_universal_adapter.h"
 #include "cutlass/gemm/kernel/default_gemm.h"
 #include "cutlass/gemm/kernel/default_gemm_universal.h"
-#include "cutlass/gemm/kernel/default_gemm_universal_with_visitor.h"
-#include "cutlass/gemm/kernel/gemm_universal_with_visitor.h"
 #include "cutlass/gemm/threadblock/threadblock_swizzle.h"
 #include "cutlass/half.h"
 #include "cutlass/layout/matrix.h"
-#include "cutlass/tensor_ref.h"
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
-#include "llvm/Support/ErrorHandling.h"
 #include <cassert>
 #include <complex.h>
 #include <cstddef>
@@ -45,6 +42,38 @@ allocFnType nvgpuAllocer = [](void **ptr, size_t size) {
   std::cout << "Allocate 3d tensor on cuda: " << *ptr << std::endl;
   std::cout << "Size: " << size << std::endl;
 };
+
+template <typename T>
+static bool checkSame(int64_t rankA, void *desA, int64_t rankB, void *desB) {
+  if (rankA != rankB) {
+    std::cout << "Shape not same" << rankA << " " << rankB << std::endl;
+    return false;
+  }
+
+  auto a = convertToDynamicMemRefType<T>(rankA, desA);
+  auto b = convertToDynamicMemRefType<T>(rankB, desB);
+
+  for (int i = 0; i < rankA; i++) {
+    if (a.sizes[i] != b.sizes[i]) {
+      return false;
+    }
+
+    if (a.strides[i] != b.strides[i]) {
+      return false;
+    }
+  }
+
+  auto totalSize =
+      std::accumulate(a.sizes, a.sizes + rankA, 1, std::multiplies<>());
+
+  for (int i = 0; i < totalSize; i++) {
+    if (a.data[i] != b.data[i]) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 extern "C" {
 
@@ -75,25 +104,15 @@ void cutlassGemmF32(int64_t rankA, void *dstA, bool transa, int64_t rankB,
 void cutlassGemmF16(int64_t rankA, void *dstA, bool transa, int64_t rankB,
                     void *dstB, bool transb, int64_t rankC, void *dstC,
                     int64_t rankD, void *dstD, int64_t activation, float alpha,
-                    float beta) {
+                    float beta, int32_t gemmNum, int32_t splitKFactor) {
   using namespace mlir::hands_on_mlir::homnvgpu_kernel;
 
-  // Ideally, we should use manifest with generated template here.
-  using RowMajor = cutlass::layout::RowMajor;
-  using CutlassGemm =
-      cutlass::gemm::device::Gemm<cutlass::half_t, // Data-type of A matrix
-                                  RowMajor,        // Layout of A matrix
-                                  cutlass::half_t, // Data-type of B matrix
-                                  RowMajor,        // Layout of B matrix
-                                  cutlass::half_t, // Data-type of C matrix
-                                  RowMajor>;       // Layout of C matrix
+  auto gemm = manifest[gemmNum - 1].get();
 
-  // GemmOperationRunner<CutlassGemm> gemm;
+  auto status = gemm->run(rankA, dstA, rankB, dstB, rankC, dstC, rankD, dstD,
+                          alpha, beta, splitKFactor);
 
-  // auto status = gemm.run(rankA, dstA, rankB, dstB, rankC, dstC, rankD, dstD,
-  //                        alpha, beta, 1);
-  //
-  // assert(status == cutlass::Status::kSuccess);
+  assert(status == cutlass::Status::kSuccess);
 }
 
 void cutlassGemmWithVarMeanF16(int64_t rankA, void *dstA, int64_t rankB,
@@ -248,9 +267,15 @@ C_UnrankedMemRefType allocConstantNVGPUF16(int32_t idx) {
   std::string line;
   getline(file, line);
   std::stringstream ss(line);
+
+  // To-do: Use a dedicated logger to log this.
+  std::cerr << "Constant Idx: " << idx << std::endl;
   while (ss >> a) {
     v.push_back(a);
+    std::cerr << a << " ";
   }
+
+  std::cerr << std::endl;
 
   assert(v.size() == 3);
 
@@ -273,21 +298,22 @@ C_UnrankedMemRefType allocConstantNVGPUF16(int32_t idx) {
 }
 
 void nvteLayernormF32(int64_t rankA, void *dstA, float eps) {
-
-  mlir::hands_on_mlir::homnvgpu_kernel::LayernormRunner<float> lnRunner;
+  using namespace mlir::hands_on_mlir::homnvgpu_kernel;
+  LayernormRunner<float> lnRunner;
   lnRunner.run(rankA, dstA, eps);
 }
 
 void nvteLayernormF16(int64_t rankA, void *dstA, float eps) {
-  mlir::hands_on_mlir::homnvgpu_kernel::LayernormRunner<half> lnRunner;
+  using namespace mlir::hands_on_mlir::homnvgpu_kernel;
+  LayernormRunner<half> lnRunner;
   lnRunner.run(rankA, dstA, eps);
 }
 
 void nvteBertAttentionF32(int64_t rankA, void *dstA, int64_t rankSeqlen,
                           void *dstSeqlen, int64_t rankOut, void *dstOut,
                           float scale, int64_t headNum) {
-  mlir::hands_on_mlir::homnvgpu_kernel::BertAttentionRunner<float>
-      bertAttnRunner;
+  using namespace mlir::hands_on_mlir::homnvgpu_kernel;
+  BertAttentionRunner<float> bertAttnRunner;
   bertAttnRunner.run(rankA, dstA, rankSeqlen, dstSeqlen, rankOut, dstOut, scale,
                      headNum);
 }
@@ -295,8 +321,8 @@ void nvteBertAttentionF32(int64_t rankA, void *dstA, int64_t rankSeqlen,
 void nvteBertAttentionF16(int64_t rankA, void *dstA, int64_t rankSeqlen,
                           void *dstSeqlen, int64_t rankOut, void *dstOut,
                           float scale, int64_t headNum) {
-  mlir::hands_on_mlir::homnvgpu_kernel::BertAttentionRunner<half>
-      bertAttnRunner;
+  using namespace mlir::hands_on_mlir::homnvgpu_kernel;
+  BertAttentionRunner<half> bertAttnRunner;
   bertAttnRunner.run(rankA, dstA, rankSeqlen, dstSeqlen, rankOut, dstOut, scale,
                      headNum);
 }
@@ -343,4 +369,9 @@ thrustGatherDEF(F16, half);
 
 thrustCuSeqLenDEF(I64, int64_t);
 thrustCuSeqLenDEF(I32, int32_t);
+
+printMemrefSizeDEF(F32, float);
+printMemrefSizeDEF(F16, half);
+printMemrefSizeDEF(I64, int64_t);
+printMemrefSizeDEF(I32, int32_t);
 }

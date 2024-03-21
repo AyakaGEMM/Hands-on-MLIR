@@ -156,10 +156,6 @@ public:
     return Status::kSuccess;
   }
 
-  Status initialize_and_update(const Arguments &args) {
-    return Status::kSuccess;
-  }
-
   Status run(int64_t rankA, void *dstA, int64_t rankB, void *dstB,
              int64_t rankC, void *dstC, int64_t rankD, void *dstD,
              int64_t rankVar, void *dstVar, int64_t rankMean, void *dstMean,
@@ -169,11 +165,6 @@ public:
     auto status = construct_arguments(rankA, dstA, rankB, dstB, rankC, dstC,
                                       rankD, dstD, rankVar, dstVar, rankMean,
                                       dstMean, alpha, beta, eps, args);
-    if (status != Status::kSuccess) {
-      return status;
-    }
-
-    status = initialize_and_update(args);
     if (status != Status::kSuccess) {
       return status;
     }
@@ -263,10 +254,8 @@ public:
   }
 
   Status initialize_and_update(const OperatorArguments &args) {
-    bool first_initialize = false;
     if (host_workspace_ == nullptr) {
       host_workspace_ = new Operator;
-      first_initialize = true;
     }
     Operator *op = static_cast<Operator *>(host_workspace_);
     auto status = op->can_implement(args);
@@ -286,11 +275,7 @@ public:
       device_workspace_size_ = required_workspace;
     }
 
-    if (first_initialize) {
-      return op->initialize(args, device_workspace_);
-    } else {
-      return op->update(args);
-    }
+    return op->initialize(args, device_workspace_);
   }
 
   static Status construct_arguments(int64_t rankA, void *dstA, int64_t rankB,

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ExecutionEngine/HandsOnRunnerUtils.h"
-#include "NVGPUKernels/Utils.h"
 #include "cutlass/coord.h"
 #include "cutlass/cutlass.h"
 #include "cutlass/gemm/device/gemm.h"
@@ -18,6 +17,7 @@ namespace hands_on_mlir {
 
 class OperationRunner {
 public:
+  virtual void poly() {}
 };
 
 struct MathInstructionDescription {

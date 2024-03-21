@@ -16,6 +16,7 @@ target_link_libraries(
           MLIRHOMNVGPU
           WeightsEngine
           TosaToHOMTransforms
-          HOMFP32ToFP16Transforms)
+          HOMFP32ToFP16Transforms
+          GemmManifestAndProfiler)
 
 mlir_check_all_link_libraries(hands-on-opt)

@@ -54,6 +54,8 @@ public:
     assert(value.rank == 3);
     assert(value.sizes[0] == 1);
     assert(indices.rank + 1 == out.rank);
+    assert(indices.rank == 2);
+
     assert(out.sizes[out.rank - 1] == value.sizes[2]);
     for (auto i = 0; i < indices.rank; i++) {
       assert(indices.sizes[i] == out.sizes[i]);

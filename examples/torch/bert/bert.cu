@@ -72,7 +72,7 @@ int main() {
                              cudaMemcpyHostToDevice));
 
   UnrankedMemRefType<half> b;
-  mlir::hands_on_mlir::ExecutionEngine e("libbert_nvgpu.so");
+  mlir::hands_on_mlir::ExecutionEngine e("libbert_autotune_nvgpu.so");
 
   // Warm up
   auto res =

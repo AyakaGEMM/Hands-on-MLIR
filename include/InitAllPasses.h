@@ -23,6 +23,7 @@ inline void registerAllPasses() {
   hom::registerTosaConstantFoldingPass();
   hom::registerTosaToHOMPipelines();
   homnvgpu::registerHOMNVGPUFusionPass();
+  homnvgpu::registerHOMNVGPUAutotunePass();
   homnvgpu::registerHOMNVGPULegalizeGemmPass();
 }
 } // namespace hands_on_mlir
