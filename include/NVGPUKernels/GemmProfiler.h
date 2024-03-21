@@ -22,7 +22,7 @@ class GemmProfiler {
 
   float alpha_, beta_;
 
-  int64_t M_, N_, K_;
+  int64_t M_, N_, K_, activation_;
 
   static void updateShape(C_UnrankedMemRefType &A, int64_t m, int64_t n,
                           int64_t k);
@@ -33,7 +33,8 @@ class GemmProfiler {
   profileHelper(std::function<void()> runFn, const char *kernelName,
                 float previousBestTime = std::numeric_limits<float>::max());
 
-  std::map<std::tuple<int64_t, int64_t, int64_t>, std::tuple<int64_t, int32_t>>
+  std::map<std::tuple<int64_t, int64_t, int64_t, int64_t>,
+           std::tuple<int64_t, int32_t>>
       timingCache;
 
   void updateSplitKFactor(int32_t K);
@@ -41,13 +42,15 @@ class GemmProfiler {
 public:
   GemmProfiler() = delete;
 
-  GemmProfiler(int64_t M, int64_t N, int64_t K, float alpha, float beta);
+  GemmProfiler(int64_t M, int64_t N, int64_t K, int64_t activation, float alpha,
+               float beta);
   ~GemmProfiler();
 
   std::tuple<int64_t, int32_t> profile();
 
   std::tuple<int64_t, int32_t> profile(int64_t M, int64_t N, int64_t K,
-                                       float alpha, float beta);
+                                       int64_t activation, float alpha,
+                                       float beta);
 };
 
 } // namespace homnvgpu_kernel

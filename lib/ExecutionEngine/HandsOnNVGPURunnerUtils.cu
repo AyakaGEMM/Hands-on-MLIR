@@ -110,7 +110,7 @@ void cutlassGemmF16(int64_t rankA, void *dstA, bool transa, int64_t rankB,
   auto gemm = manifest[gemmNum - 1].get();
 
   auto status = gemm->run(rankA, dstA, rankB, dstB, rankC, dstC, rankD, dstD,
-                          alpha, beta, 1);
+                          alpha, beta, splitKFactor);
 
   assert(status == cutlass::Status::kSuccess);
 }
@@ -268,7 +268,7 @@ C_UnrankedMemRefType allocConstantNVGPUF16(int32_t idx) {
   getline(file, line);
   std::stringstream ss(line);
 
-  // To-do: Use A dedicated logger to log this.
+  // To-do: Use a dedicated logger to log this.
   std::cerr << "Constant Idx: " << idx << std::endl;
   while (ss >> a) {
     v.push_back(a);

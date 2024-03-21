@@ -3,6 +3,8 @@ import logging
 import os
 import shutil
 import sys
+from enum import auto as enum_auto
+from types import MethodType
 
 sys.path.append(
     os.path.join(
@@ -10,12 +12,12 @@ sys.path.append(
     )
 )
 
+from gemm_operation import GemmOperation, OpcodeClassNames
 from library import (
     CalculateSmemUsage,
     ComplexTransformTag,
     DataTypeSize,
     DataTypeTag,
-    EpilogueFunctorTag,
     GemmKind,
     GeneratorTarget,
     LayoutTag,
@@ -30,6 +32,46 @@ from library import (
 from manifest import OperationKind, OperationKindNames, SubstituteTemplate
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class EpilogueFunctor(enum.Enum):
+    LinearCombination = enum_auto()
+    GELU = enum_auto()
+    LinearCombinationClamp = enum_auto()
+
+
+EpilogueFunctorTag = {
+    EpilogueFunctor.LinearCombination: "cutlass::epilogue::thread::LinearCombination",
+    EpilogueFunctor.GELU: "cutlass::epilogue::thread::LinearCombinationGELU",
+    EpilogueFunctor.LinearCombinationClamp: "cutlass::epilogue::thread::LinearCombinationClamp",
+}
+
+EpilogueFunctorName = {
+    EpilogueFunctor.LinearCombination: "linear",
+    EpilogueFunctor.GELU: "gelu",
+    EpilogueFunctor.LinearCombinationClamp: "linear_clamp",
+}
+
+
+def procedural_name(self):
+    """The full procedural name indicates architecture, extended name, tile size, and layout."""
+    opcode_class_name = OpcodeClassNames[
+        self.tile_description.math_instruction.opcode_class
+    ]
+
+    assert self.arch < 90
+
+    threadblock = self.tile_description.procedural_name()
+
+    return "cutlass{p}_{op}_{ex}_{tb}_{l}_align{a}_{e}".format(
+        p=self.prefix,
+        op=opcode_class_name,
+        ex=self.extended_name(),
+        tb=threadblock,
+        l=self.layout_name(),
+        a=str(max(self.A.alignment, self.B.alignment)),
+        e=EpilogueFunctorName[self.epilogue_functor],
+    )
 
 
 class EmitOperationKindLibrary:
@@ -963,6 +1005,10 @@ class HOM_Manifest:
         return enabled
 
     def append(self, operation):
+
+        assert isinstance(operation, GemmOperation)
+        # So stupid
+        operation.procedural_name = MethodType(procedural_name, operation)
 
         if self.filter(operation):
             self.selected_kernels.append(operation.procedural_name())

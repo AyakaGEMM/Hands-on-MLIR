@@ -221,8 +221,7 @@ public:
       if (device_workspace_size_ != 0) {
         cudaFree(device_workspace_);
       }
-      auto error = cudaMalloc(&device_workspace_, required_workspace);
-      assert(error == cudaSuccess);
+      checkCudaErrors(cudaMalloc(&device_workspace_, required_workspace));
       device_workspace_size_ = required_workspace;
     }
 

@@ -75,7 +75,7 @@ static void profileMatmulImpl(PatternRewriter &rewriter, Operation *gemm_) {
   auto A = gemm.getOperand0().getType().getShape();
   auto B = gemm.getOperand1().getType().getShape();
 
-  // To-do: Use A dedicated logger to log this.
+  // To-do: Use a dedicated logger to log this.
   for (auto i : A) {
     std::cerr << i << " ";
   }
@@ -91,10 +91,16 @@ static void profileMatmulImpl(PatternRewriter &rewriter, Operation *gemm_) {
   auto M = A[0] * A[1], N = B[2], K = A[2];
   auto alpha = gemm.getAlpha().convertToFloat();
   auto beta = gemm.getBeta().convertToFloat();
+  auto act = gemm.getAct();
 
-  static GemmProfiler profiler(M, N, K, alpha, beta);
+  if (act != 0 && act != 1) {
+    return;
+  }
 
-  auto [bestIdx, bestSplitKFactor] = profiler.profile(M, N, K, alpha, beta);
+  static GemmProfiler profiler(M, N, K, act, alpha, beta);
+
+  auto [bestIdx, bestSplitKFactor] =
+      profiler.profile(M, N, K, act, alpha, beta);
 
   gemm.setKernelName(bestIdx + 1);
   gemm.setSplitKFactor(bestSplitKFactor);

@@ -4,6 +4,7 @@
 #include "NVGPUKernels/GemmRunner.h"
 #include "NVGPUKernels/Utils.h"
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <cstdint>
 #include <functional>
 #include <numeric>
@@ -13,9 +14,10 @@ namespace mlir {
 namespace hands_on_mlir {
 namespace homnvgpu_kernel {
 
-GemmProfiler::GemmProfiler(int64_t M, int64_t N, int64_t K, float alpha,
-                           float beta)
-    : M_(M), N_(N), K_(K), alpha_(alpha), beta_(beta), timingCache() {
+GemmProfiler::GemmProfiler(int64_t M, int64_t N, int64_t K, int64_t activation,
+                           float alpha, float beta)
+    : M_(M), N_(N), K_(K), activation_(activation), alpha_(alpha), beta_(beta),
+      timingCache() {
   a.rank = b.rank = tb.rank = c.rank = 3;
   a.descriptor = malloc(sizeof(StridedMemRefType<half, 3>));
   b.descriptor = malloc(sizeof(StridedMemRefType<half, 3>));
@@ -60,7 +62,7 @@ GemmProfiler::~GemmProfiler() {
 }
 
 void GemmProfiler::updateSplitKFactor(int32_t K) {
-  auto maxK = std::max(std::min(64, K / 128), 1);
+  auto maxK = std::max(std::min(16, K / 128), 1);
 
   splitKFactor.resize(maxK);
 
@@ -100,14 +102,14 @@ float GemmProfiler::profileHelper(std::function<void()> runFn,
     totalIter += 100;
 
     if (totalTime / totalIter / 1.2 > previousBestTime) {
-      // To-do: Use A dedicated logger to log this.
+      // To-do: Use a dedicated logger to log this.
       // std::cerr << "Skipping kernel(name: " << kernelName
       //           << ") since it is too slow. " << std::endl;
       break;
     }
   }
 
-  // To-do: Use A dedicated logger to log this.
+  // To-do: Use a dedicated logger to log this.
   // std::cerr << "Get kernel name: " << kernelName << " with time "
   //           << totalTime / totalIter << std::endl;
 
@@ -141,11 +143,11 @@ void GemmProfiler::updateShape(C_UnrankedMemRefType &A, int64_t m, int64_t n,
 
 std::tuple<int64_t, int32_t> GemmProfiler::profile() {
 
-  auto it = timingCache.find({M_, N_, K_});
+  auto it = timingCache.find({M_, N_, K_, activation_});
 
   if (it != timingCache.end()) {
     auto [idx, splitKFactor] = it->second;
-    // To-do: Use A dedicated logger to log this.
+    // To-do: Use a dedicated logger to log this.
     std::cerr << "Cache hit, Idx = " << idx
               << ", split k factor = " << splitKFactor << std::endl;
     return it->second;
@@ -153,10 +155,11 @@ std::tuple<int64_t, int32_t> GemmProfiler::profile() {
 
   auto runNvteFn = [this]() {
     GemmNVTERunner<half> runner;
-    auto status = runner.run(this->a.rank, this->a.descriptor, false,
-                             this->tb.rank, this->tb.descriptor, true,
-                             this->c.rank, this->c.descriptor, this->c.rank,
-                             this->c.descriptor, 0, this->alpha_, this->beta_);
+    auto status =
+        runner.run(this->a.rank, this->a.descriptor, false, this->tb.rank,
+                   this->tb.descriptor, true, this->c.rank, this->c.descriptor,
+                   this->c.rank, this->c.descriptor, activation_, this->alpha_,
+                   this->beta_);
 
     assert(status == cutlass::Status::kSuccess);
   };
@@ -180,16 +183,23 @@ std::tuple<int64_t, int32_t> GemmProfiler::profile() {
   // Ugly filter here.
   char alignStr[] = "_align0";
 
+  if (activation_ != 0 && activation_ != 1) {
+    llvm_unreachable("Not supported.");
+  }
+
   for (size_t idx = 0; idx < manifest.size(); idx++) {
     auto kernel = manifest[idx].get();
     if (!kernel->isF16()) {
+      continue;
+    }
+    if (!kernel->contains(activation_ == 1 ? "gelu" : "linear")) {
       continue;
     }
     bool valid = false;
     auto alignInner = align;
     while (alignInner > 0 && !valid) {
       alignStr[6] += alignInner;
-      valid |= kernel->contains(alignStr);
+      valid |= kernel->getGemmDescription().A.alignment == alignInner;
       alignStr[6] -= alignInner;
       alignInner >>= 1;
     }
@@ -217,27 +227,31 @@ std::tuple<int64_t, int32_t> GemmProfiler::profile() {
     }
   }
 
-  // To-do: Use A dedicated logger to log this.
+  // To-do: Use a dedicated logger to log this.
   std::cerr << "Profile for " << M_ << " " << N_ << " " << K_
-            << " done. Best kernel " << bestIdx << ", best split k factor "
-            << bestSplitKFactor << ", best time " << bestTime
-            << ", speedup compared to nvte " << basePerf / bestTime << ". "
-            << std::endl;
+            << " act: " << activation_ << " done. Best kernel "
+            << (bestIdx == -1 ? "nvte"
+                              : manifest[bestIdx]->getGemmDescription().name)
+            << ", best split k factor " << bestSplitKFactor << ", best time "
+            << bestTime << ", speedup compared to nvte " << basePerf / bestTime
+            << ". " << std::endl;
 
-  timingCache[{M_, N_, K_}] = {bestIdx, bestSplitKFactor};
+  timingCache[{M_, N_, K_, activation_}] = {bestIdx, bestSplitKFactor};
 
   return {bestIdx, bestSplitKFactor};
 }
 
 std::tuple<int64_t, int32_t> GemmProfiler::profile(int64_t M, int64_t N,
-                                                   int64_t K, float alpha,
-                                                   float beta) {
+                                                   int64_t K,
+                                                   int64_t activation,
+                                                   float alpha, float beta) {
   updateShape(a, 1, M, K);
   updateShape(b, 1, K, N);
   updateShape(tb, 1, N, K);
   updateShape(c, 1, M, N);
 
   updateSplitKFactor(K);
+  activation_ = activation;
 
   M_ = M;
   N_ = N;
