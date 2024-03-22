@@ -18,6 +18,9 @@ GemmProfiler::GemmProfiler(int64_t M, int64_t N, int64_t K, int64_t activation,
                            float alpha, float beta)
     : M_(M), N_(N), K_(K), activation_(activation), alpha_(alpha), beta_(beta),
       timingCache() {
+  checkCudaErrors(cudaEventCreate(&start_));
+  checkCudaErrors(cudaEventCreate(&stop_));
+
   a.rank = b.rank = tb.rank = c.rank = 3;
   a.descriptor = malloc(sizeof(StridedMemRefType<half, 3>));
   b.descriptor = malloc(sizeof(StridedMemRefType<half, 3>));
@@ -48,6 +51,9 @@ GemmProfiler::GemmProfiler(int64_t M, int64_t N, int64_t K, int64_t activation,
 }
 
 GemmProfiler::~GemmProfiler() {
+  checkCudaErrors(cudaEventDestroy(start_));
+  checkCudaErrors(cudaEventDestroy(stop_));
+
   auto freeMemref = [](C_UnrankedMemRefType &A) {
     auto desA = static_cast<StridedMemRefType<half, 3> *>(A.descriptor);
 
@@ -82,22 +88,18 @@ float GemmProfiler::profileHelper(std::function<void()> runFn,
     runFn();
   }
 
-  cudaEvent_t start, stop;
-  checkCudaErrors(cudaEventCreate(&start));
-  checkCudaErrors(cudaEventCreate(&stop));
-
   float totalTime = 0, batchTime;
   int64_t totalIter = 0;
 
   while (totalTime < 500) {
-    checkCudaErrors(cudaEventRecord(start));
+    checkCudaErrors(cudaEventRecord(start_));
     // Warm up
     for (int iter = 0; iter < 100; iter++) {
       runFn();
     }
-    checkCudaErrors(cudaEventRecord(stop));
-    checkCudaErrors(cudaEventSynchronize(stop));
-    checkCudaErrors(cudaEventElapsedTime(&batchTime, start, stop));
+    checkCudaErrors(cudaEventRecord(stop_));
+    checkCudaErrors(cudaEventSynchronize(stop_));
+    checkCudaErrors(cudaEventElapsedTime(&batchTime, start_, stop_));
     totalTime += batchTime;
     totalIter += 100;
 
