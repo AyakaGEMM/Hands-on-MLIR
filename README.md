@@ -20,12 +20,18 @@ WIP. Heavily developing in progress currently, so no document available. E2E ber
     + GEMM + GELU fusion
     + Packed qkv bert attention
     + etc...
++ Autotuning cutlass
+    + Only support GEMM, GEMM + GELU op with Row,Row,Row layout
+    + The tilings are from cutlass official repo with some customization for gelu
+    + Provide about 20% performance boost
+    + Only support fp16 with fp32 acc
+    + sm < 90 since I didn't generate sm90 cutlass kernel
+    + Serial split k only
 
 # To-do
 
 + Clean up code
 + Improve precision
-+ Autotuning cutlass (If I have enough time)
 + More fusion pattern
 
 # Pre-requirement
