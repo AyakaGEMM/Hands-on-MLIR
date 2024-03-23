@@ -1,20 +1,12 @@
-#include <cstddef>
-#include <cstdint>
-#include <memory>
-#include <optional>
-#include <string>
 #include <utility>
 
 #include "Conversions/Function/FunctionUtils.h"
 #include "Conversions/Function/Passes.h"
 #include "HOM/HOMOps.h"
 #include "HOMNVGPU/HOMNVGPUOps.h"
-#include "WeightsEngine/WeightsEngine.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Func/Transforms/FuncConversions.h"
-#include "mlir/Dialect/Tosa/IR/TosaOps.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -23,17 +15,10 @@
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/ValueRange.h"
-#include "mlir/Parser/Parser.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include "llvm/ADT/APInt.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/raw_ostream.h"
-
-#include <iostream>
 
 #define PASS_NAME "homnvgpu-to-func"
 #define DEBUG_TYPE PASS_NAME

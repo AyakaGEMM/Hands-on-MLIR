@@ -1,16 +1,8 @@
 #pragma once
 
-#include "ExecutionEngine/HandsOnRunnerUtils.h"
 #include "cutlass/coord.h"
-#include "cutlass/cutlass.h"
-#include "cutlass/gemm/device/gemm.h"
-#include "cutlass/gemm/device/gemm_universal_adapter.h"
-#include "cutlass/gemm/kernel/default_gemm_universal.h"
+#include "cutlass/gemm_coord.h"
 #include "cutlass/library/types.h"
-#include <cassert>
-#include <cstddef>
-#include <cstdint>
-#include <iostream>
 
 namespace mlir {
 namespace hands_on_mlir {

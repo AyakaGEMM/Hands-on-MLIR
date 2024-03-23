@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
-#include <iostream>
 #include <numeric>
 #ifdef _WIN32 // Copied from official mlir project
 #ifndef HANDS_ON_MLIR_RUNNERUTILS_EXPORT

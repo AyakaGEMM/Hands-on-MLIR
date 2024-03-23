@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ExecutionEngine/HandsOnRunnerUtils.h"
 #include "NVGPUKernels/OperationRunner.h"
 #include "NVGPUKernels/Utils.h"
 #include "driver_types.h"
@@ -42,9 +43,6 @@ public:
   };
 
 public:
-  // To-do: I use thrust here only for fast development. Could protentially be
-  // fused into a single kernel or at least use multi stream to improve the
-  // performance.
   Status run(int rankIndices, void *desIndices, int rankValue, void *desValue,
              int rankOut, void *desOut) {
     auto indices = convertToDynamicMemRefType<int64_t>(rankIndices, desIndices);

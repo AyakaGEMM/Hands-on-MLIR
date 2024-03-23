@@ -1,15 +1,3 @@
-//===- ExecutionEngine.h - MLIR Execution engine and utils -----*- C++ -*--===//
-//
-// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-// See https://llvm.org/LICENSE.txt for license information.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-//
-//===----------------------------------------------------------------------===//
-//
-// This file provides a JIT-backed execution engine for MLIR modules.
-//
-//===----------------------------------------------------------------------===//
-
 #ifndef HANDS_ON_MLIR_EXECUTIONENGINE_EXECUTIONENGINE_H_
 #define HANDS_ON_MLIR_EXECUTIONENGINE_EXECUTIONENGINE_H_
 

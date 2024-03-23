@@ -7,8 +7,6 @@
 #include "transformer_engine/transformer_engine.h"
 #include <cstddef>
 #include <cstdint>
-#include <functional>
-#include <numeric>
 #include <tuple>
 #include <utility>
 #include <vector>

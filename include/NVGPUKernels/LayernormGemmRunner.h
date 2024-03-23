@@ -6,14 +6,9 @@
 #include "NVGPUKernels/Utils.h"
 #include "cutlass/cutlass.h"
 #include "cutlass/gemm/gemm_enumerated_types.h"
-#include "mlir/IR/BuiltinTypes.h"
-#include "transformer_engine/gemm.h"
-#include "transformer_engine/transformer_engine.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <numeric>
-#include <vector>
 
 namespace mlir {
 namespace hands_on_mlir {

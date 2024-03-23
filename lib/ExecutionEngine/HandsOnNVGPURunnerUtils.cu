@@ -84,14 +84,14 @@ void cutlassGemmF32(int64_t rankA, void *dstA, bool transa, int64_t rankB,
   using namespace mlir::hands_on_mlir::homnvgpu_kernel;
 
   // Ideally, we should use manifest with generated template here.
-  using RowMajor = cutlass::layout::RowMajor;
-  using CutlassGemm =
-      cutlass::gemm::device::Gemm<float,     // Data-type of A matrix
-                                  RowMajor,  // Layout of A matrix
-                                  float,     // Data-type of B matrix
-                                  RowMajor,  // Layout of B matrix
-                                  float,     // Data-type of C matrix
-                                  RowMajor>; // Layout of C matrix
+  // using RowMajor = cutlass::layout::RowMajor;
+  // using CutlassGemm =
+  //     cutlass::gemm::device::Gemm<float,     // Data-type of A matrix
+  //                                 RowMajor,  // Layout of A matrix
+  //                                 float,     // Data-type of B matrix
+  //                                 RowMajor,  // Layout of B matrix
+  //                                 float,     // Data-type of C matrix
+  //                                 RowMajor>; // Layout of C matrix
 
   // GemmOperationRunner<CutlassGemm> gemm;
 
