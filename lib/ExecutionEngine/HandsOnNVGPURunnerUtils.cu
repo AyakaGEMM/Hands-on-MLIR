@@ -39,8 +39,8 @@
 
 allocFnType nvgpuAllocer = [](void **ptr, size_t size) {
   checkCudaErrors(cudaMalloc(ptr, size));
-  std::cout << "Allocate 3d tensor on cuda: " << *ptr << std::endl;
-  std::cout << "Size: " << size << std::endl;
+  // std::cout << "Allocate 3d tensor on cuda: " << *ptr << std::endl;
+  // std::cout << "Size: " << size << std::endl;
 };
 
 template <typename T>
@@ -248,7 +248,7 @@ C_UnrankedMemRefType allocConstantNVGPUF32(int32_t idx) {
     host_data[i] = tmp;
   }
 
-  std::cout << totalSize << " " << des->data << std::endl;
+  // std::cout << totalSize << " " << des->data << std::endl;
 
   checkCudaErrors(cudaMemcpy(des->data, host_data, sizeof(float) * totalSize,
                              cudaMemcpyHostToDevice));
@@ -269,13 +269,13 @@ C_UnrankedMemRefType allocConstantNVGPUF16(int32_t idx) {
   std::stringstream ss(line);
 
   // To-do: Use a dedicated logger to log this.
-  std::cerr << "Constant Idx: " << idx << std::endl;
+  // std::cerr << "Constant Idx: " << idx << std::endl;
   while (ss >> a) {
     v.push_back(a);
-    std::cerr << a << " ";
+    // std::cerr << a << " ";
   }
 
-  std::cerr << std::endl;
+  // std::cerr << std::endl;
 
   assert(v.size() == 3);
 
@@ -289,7 +289,7 @@ C_UnrankedMemRefType allocConstantNVGPUF16(int32_t idx) {
     host_data[i] = tmp;
   }
 
-  std::cout << totalSize << " " << des->data << std::endl;
+  //  std::cout << totalSize << " " << des->data << std::endl;
 
   checkCudaErrors(cudaMemcpy(des->data, host_data, sizeof(half) * totalSize,
                              cudaMemcpyHostToDevice));

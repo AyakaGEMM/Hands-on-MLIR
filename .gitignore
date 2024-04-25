@@ -45,3 +45,6 @@ memo.md
 
 # python
 __pycache__/
+
+# log
+*.log

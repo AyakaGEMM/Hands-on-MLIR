@@ -71,13 +71,13 @@ def HOM_TransposeOp : HOM_Op<"transpose", []> {
 }
 
 def HOM_MatmulOp : HOM_Op<"matmul", []> {
-  let summary = "Transpose operation";
+  let summary = "Matmul operation";
   let description = [{
     Permutes the dimensions of `operand` tensor using `permutation` and produces
         a `result` tensor.
 
     Example:
-    ```mlir % 0 = hom.transpose % arg0,
+    ```mlir % 0 = hom.matmul % arg0,
     dims = [2, 1, 0]: (tensor<1x2x3xi32>)->tensor<3x2x1xi32>
     ```
   }];

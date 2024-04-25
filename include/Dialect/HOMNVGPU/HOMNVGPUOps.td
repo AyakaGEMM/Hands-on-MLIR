@@ -110,7 +110,7 @@ def HOMNVGPU_BertMhaOp : HOMNVGPU_Op<"bert_mha", []> {
 def HOMNVGPU_CuSeqLenOp : HOMNVGPU_Op<"cu_seqlen", []> {
   let summary = "Bert's MHA operator";
 
-  let description = [{Do Bert MHA.}];
+  let description = [{Do CuSeqLen.}];
 
   let arguments = (ins HOM_RankedTensor : $input);
 

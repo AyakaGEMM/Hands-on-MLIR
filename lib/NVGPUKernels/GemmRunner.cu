@@ -1,5 +1,4 @@
 #include "NVGPUKernels/GemmRunner.h"
-#include <cstring>
 
 namespace mlir {
 namespace hands_on_mlir {

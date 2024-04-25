@@ -11,6 +11,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 namespace mlir {
@@ -111,6 +112,8 @@ struct GemmDescription {
 
   /// Describes the destination matrix
   cutlass::library::TensorDescription D;
+
+  int32_t activation;
 };
 
 class GemmOperationRunnerBase {
@@ -126,6 +129,8 @@ public:
   virtual bool contains(const char *str);
 
   virtual bool isF16() = 0;
+
+  virtual int32_t getActivation() = 0;
 
   virtual const GemmDescription &getGemmDescription() { return description_; }
 
@@ -191,6 +196,14 @@ public:
         make_TensorDescription<ElementC, LayoutC>(Operator::kAlignmentC);
     description_.D =
         make_TensorDescription<ElementD, LayoutD>(Operator::kAlignmentC);
+
+    if (strstr(name, "gelu") != nullptr) {
+      description_.activation = 1;
+    } else if (strstr(name, "linear") != nullptr) {
+      description_.activation = 0;
+    } else {
+      description_.activation = -1;
+    }
   }
 
   virtual ~GemmOperationRunner() {
@@ -302,6 +315,8 @@ public:
            (description_.C.element == NumericTypeID::kF16) &&
            (description_.D.element == NumericTypeID::kF16);
   }
+
+  virtual int32_t getActivation() override { return description_.activation; }
 };
 
 template <typename ElementType> class GemmNVTERunner : public OperationRunner {

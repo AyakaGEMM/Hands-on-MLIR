@@ -34,6 +34,7 @@ GemmProfiler::GemmProfiler(int64_t M, int64_t N, int64_t K, int64_t activation,
 
   auto clearSize = [](StridedMemRefType<half, 3> &A) {
     A.sizes[0] = A.sizes[1] = A.sizes[2] = 0;
+    A.offset = 0;
     A.data = nullptr;
   };
 
@@ -122,12 +123,10 @@ void GemmProfiler::updateShape(C_UnrankedMemRefType &A, int64_t m, int64_t n,
                                int64_t k) {
   auto desA = static_cast<StridedMemRefType<half, 3> *>(A.descriptor);
 
-  auto oldTotalSize = std::accumulate(desA->sizes, desA->sizes + 3, 1,
-                                      std::multiplies<int64_t>());
-
-  if (m * n * k > oldTotalSize) {
+  if (m * n * k > desA->offset) {
     checkCudaErrors(cudaFree(desA->data));
     checkCudaErrors(cudaMalloc(&(desA->data), m * n * k * sizeof(half)));
+    desA->offset = m * n * k;
   }
 
   desA->sizes[0] = m;
@@ -137,8 +136,6 @@ void GemmProfiler::updateShape(C_UnrankedMemRefType &A, int64_t m, int64_t n,
   desA->strides[0] = n * k;
   desA->strides[1] = k;
   desA->strides[2] = 1;
-
-  desA->offset = 0;
 
   desA->basePtr = desA->data;
 }
@@ -182,9 +179,6 @@ std::tuple<int64_t, int32_t> GemmProfiler::profile() {
     align >>= 1;
   }
 
-  // Ugly filter here.
-  char alignStr[] = "_align0";
-
   if (activation_ != 0 && activation_ != 1) {
     llvm_unreachable("Not supported.");
   }
@@ -194,15 +188,13 @@ std::tuple<int64_t, int32_t> GemmProfiler::profile() {
     if (!kernel->isF16()) {
       continue;
     }
-    if (!kernel->contains(activation_ == 1 ? "gelu" : "linear")) {
+    if (kernel->getActivation() != activation_) {
       continue;
     }
     bool valid = false;
     auto alignInner = align;
     while (alignInner > 0 && !valid) {
-      alignStr[6] += alignInner;
       valid |= kernel->getGemmDescription().A.alignment == alignInner;
-      alignStr[6] -= alignInner;
       alignInner >>= 1;
     }
     if (!valid) {
