@@ -39,8 +39,10 @@
 
 allocFnType nvgpuAllocer = [](void **ptr, size_t size) {
   checkCudaErrors(cudaMalloc(ptr, size));
+  static size_t totalSize = 0;
+  totalSize += size;
   // std::cout << "Allocate 3d tensor on cuda: " << *ptr << std::endl;
-  // std::cout << "Size: " << size << std::endl;
+  std::cerr << "Total Size: " << totalSize << std::endl;
 };
 
 template <typename T>
@@ -232,9 +234,13 @@ C_UnrankedMemRefType allocConstantNVGPUF32(int32_t idx) {
   std::string line;
   getline(file, line);
   std::stringstream ss(line);
+  static size_t constantSize = 1;
   while (ss >> a) {
     v.push_back(a);
+    constantSize *= a;
   }
+
+  std::cerr << "Constant Size: " << constantSize << std::endl;
 
   assert(v.size() == 3);
 
@@ -270,9 +276,9 @@ C_UnrankedMemRefType allocConstantNVGPUF16(int32_t idx) {
 
   // To-do: Use a dedicated logger to log this.
   // std::cerr << "Constant Idx: " << idx << std::endl;
+  static size_t constantSize = 0;
   while (ss >> a) {
     v.push_back(a);
-    // std::cerr << a << " ";
   }
 
   // std::cerr << std::endl;
@@ -284,6 +290,8 @@ C_UnrankedMemRefType allocConstantNVGPUF16(int32_t idx) {
   auto totalSize = std::accumulate(v.begin(), v.end(), 1, std::multiplies<>());
   auto host_data = new half[totalSize];
   float tmp;
+  constantSize += totalSize;
+  std::cerr << "Constant Size: " << constantSize * 2 << std::endl;
   for (int i = 0; i < totalSize; i++) {
     file >> tmp;
     host_data[i] = tmp;

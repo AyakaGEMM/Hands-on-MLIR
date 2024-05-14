@@ -1,3 +1,4 @@
+#include <iostream>
 #include <utility>
 
 #include "Conversions/Function/FunctionUtils.h"
@@ -89,6 +90,10 @@ struct ConvertHOMNVGPUMatmulOp
 
     if (canMatmulReuseC(op)) {
       d = c;
+      static size_t i = 0;
+      i += returnType.getShape()[0] * returnType.getShape()[1] *
+           returnType.getShape()[2];
+      std::cerr << "Saving from gemm: " << i << std::endl;
     } else {
       func::FuncOp allocFn;
 
@@ -433,6 +438,10 @@ struct ConvertHOMNVGPULayernormOp
 
     if (auto tensorTy = dyn_cast<TensorType>(op->getOperand(0).getType())) {
       elementType = tensorTy.getElementType();
+      static size_t i = 0;
+      i += tensorTy.getShape()[0] * tensorTy.getShape()[1] *
+           tensorTy.getShape()[2];
+      std::cerr << "Saving from layernorm: " << i << std::endl;
     } else if (auto memrefTy =
                    dyn_cast<UnrankedMemRefType>(op->getOperand(0).getType())) {
       elementType = memrefTy.getElementType();

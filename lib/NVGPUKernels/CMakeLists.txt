@@ -10,7 +10,7 @@ execute_process(
     ${CMAKE_CURRENT_BINARY_DIR} --generator-target library --architectures
     "${CMAKE_CUDA_ARCHITECTURES}"
     # To-do: make it configurable
-    --kernels "*_nn_*" --ignore-kernels "${CUTLASS_LIBRARY_IGNORE_KERNELS}"
+    --kernels "*_aa_*" --ignore-kernels "${CUTLASS_LIBRARY_IGNORE_KERNELS}"
     --kernel-filter-file "${KERNEL_FILTER_FILE}" --selected-kernel-list
     "${CUTLASS_LIBRARY_GENERATED_KERNEL_LIST_FILE}" --cuda-version
     "${CMAKE_CUDA_COMPILER_VERSION}" --log-level DEBUG
